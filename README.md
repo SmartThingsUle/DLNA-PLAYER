@@ -41,7 +41,7 @@ Click the blue "Save" button above the editor window.
 Click the "Publish" button next to it and select "For Me". You have now self-published your SmartApp.
 
 
-**Searchiing the Media Renders**
+**Searching the Media Renders**
 
 
 Open the SmartThings app in your smartphone.
