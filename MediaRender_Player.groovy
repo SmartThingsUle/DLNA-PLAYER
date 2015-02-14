@@ -453,6 +453,8 @@ def playStation()
 	result << mediaRenderAction("Stop")
 	result << setTrack(settings.confStationURI)
 	result << mediaRenderAction("Play")
+	result = result.flatten()
+	result
 }
 
 // Always sets only this level
