@@ -1,5 +1,5 @@
 /** 
- *  MediaRender Player
+ *  MediaRenderer Player
  *
  *  Author: SmartThings Adapted by Ulises Mujica (Ule)
  *
@@ -344,7 +344,7 @@ def parse(description) {
 						.replaceAll('(</[a-z,A-Z,0-9,\\-,_,:]+>)','\n$1\n')
 						.replaceAll('\n\n','\n').encodeAsHTML() : ""
 					results << createEvent(
-						name: "mediaRenderMessage",
+						name: "mediaRendererMessage",
 						value: "${msg.body.encodeAsMD5()}",
 						description: description,
 						descriptionText: "Body is ${msg.body?.size() ?: 0} bytes",
@@ -450,9 +450,9 @@ def playStation()
 		settings.confStationURI = "http://2223.live.streamtheworld.com:80/CLASSIC106_SC"
 	}
 	def result = []
-	result << mediaRenderAction("Stop")
+	result << mediaRendererAction("Stop")
 	result << setTrack(settings.confStationURI)
-	result << mediaRenderAction("Play")
+	result << mediaRendererAction("Play")
 	result = result.flatten()
 	result
 }
@@ -465,9 +465,9 @@ def setLocalLevel(val, delay=0) {
 	if (delay) {
 		result << delayAction(delay)
 	}
-	result << mediaRenderAction("SetVolume", "RenderingControl", device.currentValue("rccurl") , [InstanceID: 0, Channel: "Master", DesiredVolume: v])
+	result << mediaRendererAction("SetVolume", "RenderingControl", device.currentValue("rccurl") , [InstanceID: 0, Channel: "Master", DesiredVolume: v])
 	//result << delayAction(500),
-	result << mediaRenderAction("GetVolume", "RenderingControl", device.currentValue("rccurl"), [InstanceID: 0, Channel: "Master"])
+	result << mediaRendererAction("GetVolume", "RenderingControl", device.currentValue("rccurl"), [InstanceID: 0, Channel: "Master"])
 	result
 }
 
@@ -504,45 +504,45 @@ def getGroupStatus() {
 }
 
 def play() {
-	coordinate({mediaRenderAction("Play")}, {it.play()})
+	coordinate({mediaRendererAction("Play")}, {it.play()})
 	
 }
 
 def stop() {
-	coordinate({mediaRenderAction("Stop")}, {it.stop()})
+	coordinate({mediaRendererAction("Stop")}, {it.stop()})
 }
 
 def pause() {
-	coordinate({mediaRenderAction("Pause")}, {it.pause()})
+	coordinate({mediaRendererAction("Pause")}, {it.pause()})
 }
 
 def nextTrack() {
-	coordinate({mediaRenderAction("Next")}, {it.nextTrack()})
+	coordinate({mediaRendererAction("Next")}, {it.nextTrack()})
 }
 
 def previousTrack() {
-	coordinate({mediaRenderAction("Previous")}, {it.previousTrack()})
+	coordinate({mediaRendererAction("Previous")}, {it.previousTrack()})
 }
 
 def seek(trackNumber) {
-	coordinate({mediaRenderAction("Seek", "AVTransport", device.currentValue("avtcurl") , [InstanceID: 0, Unit: "TRACK_NR", Target: trackNumber])}, {it.seek(trackNumber)})
+	coordinate({mediaRendererAction("Seek", "AVTransport", device.currentValue("avtcurl") , [InstanceID: 0, Unit: "TRACK_NR", Target: trackNumber])}, {it.seek(trackNumber)})
 }
 
 def mute()
 {
 	// TODO - handle like volume?
-	coordinate({mediaRenderAction("SetMute", "RenderingControl", device.currentValue("rccurl"), [InstanceID: 0, Channel: "Master", DesiredMute: 1])}, {it.mute()})
+	coordinate({mediaRendererAction("SetMute", "RenderingControl", device.currentValue("rccurl"), [InstanceID: 0, Channel: "Master", DesiredMute: 1])}, {it.mute()})
 }
 
 def unmute()
 {
 	// TODO - handle like volume?
-	coordinate({mediaRenderAction("SetMute", "RenderingControl", device.currentValue("rccurl"), [InstanceID: 0, Channel: "Master", DesiredMute: 0])}, {it.unmute()})
+	coordinate({mediaRendererAction("SetMute", "RenderingControl", device.currentValue("rccurl"), [InstanceID: 0, Channel: "Master", DesiredMute: 0])}, {it.unmute()})
 }
 
 def setPlayMode(mode)
 {
-	coordinate({mediaRenderAction("SetPlayMode", [InstanceID: 0, NewPlayMode: mode])}, {it.setPlayMode(mode)})
+	coordinate({mediaRendererAction("SetPlayMode", [InstanceID: 0, NewPlayMode: mode])}, {it.setPlayMode(mode)})
 }
 
 
@@ -561,13 +561,13 @@ def playTrackAndResume(uri, duration, volume=null) {
 		def currentStatus = device.currentValue("status")
 		def level = volume as Integer
 		def result = []
-		result << mediaRenderAction("Stop")
+		result << mediaRendererAction("Stop")
 		if (level) {
-			result << mediaRenderAction("Stop")
+			result << mediaRendererAction("Stop")
 			result << setLocalLevel(level)
 		}
 		result << setTrack(uri)
-		result << mediaRenderAction("Play")
+		result << mediaRendererAction("Play")
 
 		if (currentTrack) {
 			def delayTime = ((duration as Integer) * 1000)+3000
@@ -576,12 +576,12 @@ def playTrackAndResume(uri, duration, volume=null) {
 			}
 			result << delayAction(delayTime)
 			if (level) {
-				result << mediaRenderAction("Stop")
+				result << mediaRendererAction("Stop")
 				result << setLocalLevel(currentVolume)
 			}
 			result << setTrack(currentTrack)
 			if (currentStatus == "playing") {
-				result << mediaRenderAction("Play")
+				result << mediaRendererAction("Play")
 			}
 		}
 
@@ -609,12 +609,12 @@ def playTrackAndRestore(uri, duration, volume=null) {
 
 		def result = []
 		if (level) {
-			result << mediaRenderAction("Stop")
+			result << mediaRendererAction("Stop")
 			result << setLocalLevel(level)
 		}
 
 		result << setTrack(uri)
-		result << mediaRenderAction("Play")
+		result << mediaRendererAction("Play")
 
 		if (currentTrack) {
 			def delayTime = ((duration as Integer) * 1000)+3000
@@ -623,7 +623,7 @@ def playTrackAndRestore(uri, duration, volume=null) {
 			}
 			result << delayAction(delayTime)
 			if (level) {
-				result << mediaRenderAction("Stop")
+				result << mediaRendererAction("Stop")
 				result << setLocalLevel(currentVolume)
 			}
 			result << setTrack(currentTrack)
@@ -647,18 +647,18 @@ def playSoundAndTrack(soundUri, duration, trackData, volume=null) {
 		def level = volume as Integer
 		def result = []
 		if (level) {
-			result << mediaRenderAction("Stop")
+			result << mediaRendererAction("Stop")
 			result << setLocalLevel(level)
 		}
 
 		result << setTrack(soundUri)
-		result << mediaRenderAction("Play")
+		result << mediaRendererAction("Play")
 
 		def delayTime = ((duration as Integer) * 1000)+3000
 		result << delayAction(delayTime)
 
 		result << setTrack(trackData)
-		result << mediaRenderAction("Play")
+		result << mediaRendererAction("Play")
 
 		result = result.flatten()
 		result
@@ -668,10 +668,10 @@ def playSoundAndTrack(soundUri, duration, trackData, volume=null) {
 def playTrackAtVolume(String uri, volume) {
 	coordinate({
 		def result = []
-		result << mediaRenderAction("Stop")
+		result << mediaRendererAction("Stop")
 		result << setLocalLevel(volume as Integer)
 		result << setTrack(uri, metaData)
-		result << mediaRenderAction("Play")
+		result << mediaRendererAction("Play")
 		result.flatten()
 	}, {it.playTrack(uri, metaData)})
 }
@@ -679,7 +679,7 @@ def playTrackAtVolume(String uri, volume) {
 def playTrack(String uri, metaData="") {
 	coordinate({
 		def result = setTrack(uri, metaData)
-		result << mediaRenderAction("Play")
+		result << mediaRendererAction("Play")
 		result.flatten()
 	}, {it.playTrack(uri, metaData)})
 }
@@ -688,7 +688,7 @@ def playTrack(Map trackData) {
 	coordinate({
 		def result = setTrack(trackData)
 		//result << delayAction(1000)
-		result << mediaRenderAction("Play")
+		result << mediaRendererAction("Play")
 		result.flatten()
 	}, {it.playTrack(trackData)})
 }
@@ -700,13 +700,13 @@ def setTrack(Map trackData) {
 		if ((data.transportUri.startsWith("x-rincon-queue:") || data.enqueuedUri.contains("savedqueues")) && data.trackNumber != null) {
 		// TODO - Clear queue?
 			def uri = device.getDataValue('queueUri')
-			result << mediaRenderAction("RemoveAllTracksFromQueue", [InstanceID: 0])
+			result << mediaRendererAction("RemoveAllTracksFromQueue", [InstanceID: 0])
 			//result << delayAction(500)
-			result << mediaRenderAction("AddURIToQueue", [InstanceID: 0, EnqueuedURI: data.uri, EnqueuedURIMetaData: data.metaData, DesiredFirstTrackNumberEnqueued: 0, EnqueueAsNext: 1])
+			result << mediaRendererAction("AddURIToQueue", [InstanceID: 0, EnqueuedURI: data.uri, EnqueuedURIMetaData: data.metaData, DesiredFirstTrackNumberEnqueued: 0, EnqueueAsNext: 1])
 			//result << delayAction(500)
-			result << mediaRenderAction("SetAVTransportURI", [InstanceID: 0, CurrentURI: uri, CurrentURIMetaData: metaData])
+			result << mediaRendererAction("SetAVTransportURI", [InstanceID: 0, CurrentURI: uri, CurrentURIMetaData: metaData])
 			//result << delayAction(500)
-			result << mediaRenderAction("Seek", "AVTransport", device.currentValue("avtcurl"), [InstanceID: 0, Unit: "TRACK_NR", Target: data.trackNumber])
+			result << mediaRendererAction("Seek", "AVTransport", device.currentValue("avtcurl"), [InstanceID: 0, Unit: "TRACK_NR", Target: data.trackNumber])
 		} else {
 			result = setTrack(data.uri, data.metaData)
 		}
@@ -723,7 +723,7 @@ def setTrack(String uri, metaData="")
 	}
 	coordinate({
 		def result = []
-		result << mediaRenderAction("SetAVTransportURI", [InstanceID: 0, CurrentURI: uri, CurrentURIMetaData: metaData])
+		result << mediaRendererAction("SetAVTransportURI", [InstanceID: 0, CurrentURI: uri, CurrentURIMetaData: metaData])
 		result
 	}, {it.setTrack(uri, metaData)})
 }
@@ -732,7 +732,7 @@ def resumeTrack(Map trackData = null) {
 	coordinate({
 		def result = restoreTrack(trackData)
 		//result << delayAction(500)
-		result << mediaRenderAction("Play")
+		result << mediaRendererAction("Play")
 		result
 	}, {it.resumeTrack(trackData)})
 }
@@ -747,11 +747,11 @@ def restoreTrack(Map trackData = null) {
 		if (data) {
 			if ((data.transportUri.startsWith("x-rincon-queue:") || data.enqueuedUri.contains("savedqueues")) && data.trackNumber != null) {
 				def uri = device.getDataValue('queueUri')
-				result << mediaRenderAction("SetAVTransportURI", [InstanceID: 0, CurrentURI: uri, CurrentURIMetaData: data.metaData])
+				result << mediaRendererAction("SetAVTransportURI", [InstanceID: 0, CurrentURI: uri, CurrentURIMetaData: data.metaData])
 				//result << delayAction(500)
-				result << mediaRenderAction("Seek", "AVTransport",  device.currentValue("avtcurl"), [InstanceID: 0, Unit: "TRACK_NR", Target: data.trackNumber])
+				result << mediaRendererAction("Seek", "AVTransport",  device.currentValue("avtcurl"), [InstanceID: 0, Unit: "TRACK_NR", Target: data.trackNumber])
 			} else {
-				result << mediaRenderAction("SetAVTransportURI", [InstanceID: 0, CurrentURI: data.uri, CurrentURIMetaData: data.metaData])
+				result << mediaRendererAction("SetAVTransportURI", [InstanceID: 0, CurrentURI: data.uri, CurrentURIMetaData: data.metaData])
 			}
 		}
 		else {
@@ -764,7 +764,7 @@ def restoreTrack(Map trackData = null) {
 def playText(String msg) {
 	coordinate({
 		def result = setText(msg)
-		result << mediaRenderAction("Play")
+		result << mediaRendererAction("Play")
 	}, {it.playText(msg)})
 }
 
@@ -808,22 +808,22 @@ def unsubscribe() {
 
 def getVolume()
 {
-	mediaRenderAction("GetVolume", "RenderingControl", device.currentValue("rccurl"), [InstanceID: 0, Channel: "Master"])
+	mediaRendererAction("GetVolume", "RenderingControl", device.currentValue("rccurl"), [InstanceID: 0, Channel: "Master"])
 }
 
 def getCurrentMedia()
 {
-	mediaRenderAction("GetPositionInfo", [InstanceID:0, Channel: "Master"])
+	mediaRendererAction("GetPositionInfo", [InstanceID:0, Channel: "Master"])
 }
 
 def getCurrentStatus() //transport info
 {
-	mediaRenderAction("GetTransportInfo", [InstanceID:0])
+	mediaRendererAction("GetTransportInfo", [InstanceID:0])
 }
 
 def getSystemString()
 {
-	mediaRenderAction("GetString", "SystemProperties", "/SystemProperties/Control", [VariableName: "UMTracking"])
+	mediaRendererAction("GetString", "SystemProperties", "/SystemProperties/Control", [VariableName: "UMTracking"])
 }
 
 private messageFilename(String msg) {
@@ -835,19 +835,19 @@ private getCallBackAddress()
 	device.hub.getDataValue("localIP") + ":" + device.hub.getDataValue("localSrvPortTCP")
 }
 
-private mediaRenderAction(String action) {
+private mediaRendererAction(String action) {
 	if(action=="Play"){
-		mediaRenderAction(action, "AVTransport", device.currentValue("avtcurl"), [InstanceID:0, Speed:1])
+		mediaRendererAction(action, "AVTransport", device.currentValue("avtcurl"), [InstanceID:0, Speed:1])
     }else{
-		mediaRenderAction(action, "AVTransport", device.currentValue("avtcurl"), [InstanceID:0])
+		mediaRendererAction(action, "AVTransport", device.currentValue("avtcurl"), [InstanceID:0])
     }
 }
 
-private mediaRenderAction(String action, Map body) {
-	mediaRenderAction(action, "AVTransport", device.currentValue("avtcurl"), body)
+private mediaRendererAction(String action, Map body) {
+	mediaRendererAction(action, "AVTransport", device.currentValue("avtcurl"), body)
 }
 
-private mediaRenderAction(String action, String service, String path, Map body = [InstanceID:0, Speed:1]) {
+private mediaRendererAction(String action, String service, String path, Map body = [InstanceID:0, Speed:1]) {
 	def result = new physicalgraph.device.HubSoapAction(
 		path:    path ?: "/MediaRenderer/$service/Control",
 		urn:     "urn:schemas-upnp-org:service:$service:1",
