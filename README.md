@@ -3,7 +3,8 @@ Generic DLNA Player to Smartthings
 
 
 
-1. Installing The MediaRender Connect
+Installing The MediaRender Connect
+
 
 Open SmartThings IDE in your web browser and log into your account.
 
@@ -20,7 +21,9 @@ Click the blue "Save" button above the editor window.
 Click the "Publish" button next to it and select "For Me". You have now self-published your SmartApp.
 
 
-2. Installing The Device Type
+
+ Installing The Device Type
+
 
 Open SmartThings IDE in your web browser and log into your account.
 
@@ -36,7 +39,9 @@ Click the blue "Save" button above the editor window.
 
 Click the "Publish" button next to it and select "For Me". You have now self-published your SmartApp.
 
-3. Searchiing the Media Renders
+
+Searchiing the Media Renders
+
 
 Open the SmartThings app in your smartphone.
 
