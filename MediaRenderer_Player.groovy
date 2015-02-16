@@ -125,7 +125,6 @@ def parse(description) {
 	def results = []
 	try {
 		def msg = parseLanMessage(description)
-		longTrace( msg.encodeAsHTML())
 		if (msg.headers)
 		{
 			def hdr = msg.header.split('\n')[0]
@@ -177,6 +176,14 @@ def parse(description) {
 								sendEvent(name: "switch", value: currentStatus=="playing" ? "on" : "off", displayed: false)
 							}
 						}
+					}
+				}
+				node = msg.xml.Body.GetVolumeResponse
+				if (node.size()) {
+					def currentVolume = statusText(node.CurrentVolume.text())
+					if (currentVolume) {
+						def coordinator = device.getDataValue('coordinator')
+                        sendEvent(name: "level", value: currentVolume, description: description)
 					}
 				}
 
@@ -415,7 +422,6 @@ def poll() {
 }
 
 def refresh() {
-	log.trace "refresh()"
 	def result = subscribe()
 	result << getCurrentStatus()
 	result << getVolume()
@@ -848,7 +854,6 @@ private mediaRendererAction(String action, Map body) {
 }
 
 private mediaRendererAction(String action, String service, String path, Map body = [InstanceID:0, Speed:1]) {
-	log.trace "mediaRendererAction( $action, $service, $path, $body )"
     def result = new physicalgraph.device.HubSoapAction(
 		path:    path ?: "/MediaRenderer/$service/Control",
 		urn:     "urn:schemas-upnp-org:service:$service:1",
@@ -973,8 +978,4 @@ private getExtensionFromFilename(fileName) {
   def returned_value = fileName.substring(fileName.lastIndexOf("/") + 1).substring(fileName.lastIndexOf("\\") + 1);
   return returned_value
 }
-private longTrace(text){
-	for (int start = 0; start < text.length(); start += 1000) {
-        log.trace "${text.substring(start, Math.min(text.length(), start + 1000))}"
-    }
-}
+
