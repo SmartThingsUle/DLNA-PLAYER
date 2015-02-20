@@ -12,7 +12,7 @@ preferences {
 }
 metadata {
 	// Automatically generated. Make future change here.
-	definition (name: "DLNA Player", namespace: "mujica", author: "SmartThings-Mod-Ule") {
+	definition (name: "DLNA Player", namespace: "mujica", author: "SmartThings-Ulises Mujica") {
 		capability "Actuator"
 		capability "Switch"
 		capability "Refresh"
