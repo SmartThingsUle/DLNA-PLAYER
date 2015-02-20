@@ -1,5 +1,5 @@
-# DLNA-PLAYER
-Generic DLNA Player to Smartthings
+# DLNA-PLAYER 
+Generic DLNA Player to Smartthings v 1.5
 
 
 
@@ -56,4 +56,27 @@ Once the app will show the quantity of media renderers found, activate all the m
 
 Get back to main window and you should have the new players in your things section, refresh the page if no players appears.
 
+Revision History
+----------------
+
+**Version 1.5.0 
+* Improved Track resume and Container resume
+
+**Version 1.4.0 
+* Implemented message in progress
+
+**Version 1.3.0 
+* Implemented new Delay before message (Some slow MR need more time to load an external http file)
+
+**Version 1.2.0 
+* Implemented new Delay between actions (Some slow MR need more time between actions)
+
+**Version 1.1.0 
+* Implemented new Do not Disturb state to avoid messages 
+
+**Version 1.0.1 
+* Removed Play test button
+
+**Version 1.0.0. Released 2015-02-13**
+* First public release.
 
