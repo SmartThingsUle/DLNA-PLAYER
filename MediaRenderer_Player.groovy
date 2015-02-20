@@ -8,7 +8,7 @@
 
 preferences {
 		input(name: "customDelay", type: "enum", title: "Delay before msg (seconds)", options: ["0","1","2","3","4","5"])
-		input(name: "actionsDelay", type: "enum", title: "Delay between actions (seconds)", options: ["0","1","2","4"])
+		input(name: "actionsDelay", type: "enum", title: "Delay between actions (seconds)", options: ["0","1","2","3"])
 }
 metadata {
 	// Automatically generated. Make future change here.
