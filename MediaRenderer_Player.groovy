@@ -1,9 +1,8 @@
 /** 
- *  MediaRenderer Player
+ *  MediaRenderer Player v 1.5.1
  *
  *  Author: SmartThings - Ulises Mujica (Ule)
  *
- *  Version 1.5
  */
 
 preferences {
@@ -102,7 +101,9 @@ metadata {
 	}
 	standardTile("doNotDisturb", "device.doNotDisturb", width: 1, height: 1, decoration: "flat", canChangeIcon: true) {
 		state "off", label:"MSG Enabled", action:"switchDoNotDisturb", icon:"st.alarm.beep.beep",nextState:"on"
-		state "on", label:"MSG Disabled", action:"switchDoNotDisturb", icon:"st.custom.sonos.muted",nextState:"off"
+		state "on", label:"MSG Disabled", action:"switchDoNotDisturb", icon:"st.custom.sonos.muted",nextState:"on_playing"
+        state "on_playing", label:"MSG on Stopped", action:"switchDoNotDisturb", icon:"st.alarm.beep.beep",nextState:"off_playing"
+        state "off_playing", label:"MSG on Playing", action:"switchDoNotDisturb", icon:"st.alarm.beep.beep",nextState:"off"
 	}
 	standardTile("unsubscribe", "device.status", width: 1, height: 1, decoration: "flat") {
 		state "previous", label:'Unsubscribe', action:"unsubscribe", backgroundColor:"#ffffff"
@@ -489,7 +490,19 @@ def setPlayMode(mode)
 	mediaRendererAction("SetPlayMode", [InstanceID: 0, NewPlayMode: mode])
 }
 def switchDoNotDisturb(){
-	setDoNotDisturb(device.currentValue("doNotDisturb") == "on" ? "off":"on") 
+    switch(device.currentValue("doNotDisturb")) {
+        case "off":
+			setDoNotDisturb("on")
+            break
+        case "on":
+			setDoNotDisturb("on_playing")
+            break
+		case "on_playing":
+			setDoNotDisturb("off_playing")
+            break
+		default:
+			setDoNotDisturb("off")
+	}
 }
 
 def playTextAndResume(text, volume=null)
@@ -499,14 +512,15 @@ def playTextAndResume(text, volume=null)
 }
 
 def playTrackAndResume(uri, duration, volume=null) {
-	def eventTime = new Date().time
+    def eventTime = new Date().time
 	def currentTrack = device.currentState("trackData")?.jsonValue
 	def currentVolume = device.currentState("level")?.integerValue
 	def currentStatus = device.currentValue("status")
+    def currentDoNotDisturb = device.currentValue("doNotDisturb")
 	def level = volume as Integer
 	def actionsDelayTime = actionsDelay ? (actionsDelay as Integer) * 1000 :0
 	def result = []
-	if( device.currentValue("doNotDisturb") != "on"  && eventTime > state.secureEventTime ?:0){
+	if( !(currentDoNotDisturb  == "on_playing" && currentStatus == "playing" ) && !(currentDoNotDisturb  == "off_playing" && currentStatus != "playing" ) && currentDoNotDisturb != "on"  && eventTime > state.secureEventTime ?:0){
 		result << mediaRendererAction("Stop")
 		if(actionsDelayTime > 0){
 			result << delayAction(actionsDelayTime)
@@ -515,7 +529,7 @@ def playTrackAndResume(uri, duration, volume=null) {
 			result << setLocalLevel(level)
 			result << delayAction(actionsDelayTime + 500)
 		}
-		
+		uri = uri.replace("https:","http:")
 		result << setTrack(uri)
 		if(actionsDelayTime > 0){
 			result << delayAction(actionsDelayTime)
@@ -570,10 +584,11 @@ def playTrackAndRestore(uri, duration, volume=null) {
 	def currentTrack = device.currentState("trackData")?.jsonValue
 	def currentVolume = device.currentState("level")?.integerValue
 	def currentStatus = device.currentValue("status")
+    def currentDoNotDisturb = device.currentValue("doNotDisturb")
 	def level = volume as Integer
 	def actionsDelayTime = actionsDelay ? (actionsDelay as Integer) * 1000 :0
 	def result = []
-	if( device.currentValue("doNotDisturb") != "on"  && eventTime > state.secureEventTime ?:0){
+	if( !(currentDoNotDisturb  == "on_playing" && currentStatus == "playing" ) && !(currentDoNotDisturb  == "off_playing" && currentStatus != "playing" ) && device.currentValue("doNotDisturb") != "on"  && eventTime > state.secureEventTime ?:0){
 		result << mediaRendererAction("Stop")
 		if(actionsDelayTime > 0){
 			result << delayAction(actionsDelayTime)
@@ -582,7 +597,7 @@ def playTrackAndRestore(uri, duration, volume=null) {
 			result << setLocalLevel(level)
 			result << delayAction(actionsDelayTime + 500)
 		}
-		
+		uri = uri.replace("https:","http:")
 		result << setTrack(uri)
 		if(actionsDelayTime > 0){
 			result << delayAction(actionsDelayTime)
