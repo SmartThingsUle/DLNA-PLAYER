@@ -1,15 +1,15 @@
 /** 
  *  MediaRenderer Player
  *
- *  Author: SmartThings Adapted by Ulises Mujica (Ule)
+ *  Author: SmartThings - Ulises Mujica (Ule)
  *
+ *  Version 1.5
  */
+
 preferences {
-    input("confStationURI", "string", title:"Song URL",
-        required:false, displayDuringSetup: false)
+		input(name: "customDelay", type: "enum", title: "Delay before msg (seconds)", options: ["0","1","2","3","4","5"])
+		input(name: "actionsDelay", type: "enum", title: "Delay between actions (seconds)", options: ["0.5","1","1.5","2"])
 }
-
-
 metadata {
 	// Automatically generated. Make future change here.
 	definition (name: "DLNA Player", namespace: "mujica", author: "SmartThings-Mod-Ule") {
@@ -24,10 +24,10 @@ metadata {
 		attribute "trackUri", "string"
 		attribute "transportUri", "string"
 		attribute "trackNumber", "string"
-		attribute "avteurl", "string"
-		attribute "avtcurl", "string"
-		attribute "rccurl", "string"
-		attribute "rceurl", "string"
+		attribute "model", "string"
+		attribute "doNotDisturb", "string"
+		
+
 
 		command "subscribe"
 		command "getVolume"
@@ -44,13 +44,16 @@ metadata {
 		command "playTextAndRestore", ["string","number"]
 		command "playSoundAndTrack", ["string","number","json_object","number"]
 		command "playTextAndResume", ["string","json_object","number"]
-		command "playStation"
+		command "setDoNotDisturb", ["string"]
+		command "switchDoNotDisturb"
 	}
 
 	// Main
 	standardTile("main", "device.status", width: 1, height: 1, canChangeIcon: true) {
+		state "playing", label:'Playing', action:"music Player.stop", icon:"st.Electronics.electronics16", nextState:"paused", backgroundColor:"#79b821"
+		state "stopped", label:'Stopped', action:"music Player.play", icon:"st.Electronics.electronics16", backgroundColor:"#ffffff"
 		state "paused", label:'Paused', action:"music Player.play", icon:"st.Electronics.electronics16", nextState:"playing", backgroundColor:"#ffffff"
-		state "playing", label:'Playing', action:"music Player.pause", icon:"st.Electronics.electronics16", nextState:"paused", backgroundColor:"#79b821"
+		state "no_media_present", label:'No Media', icon:"st.Electronics.electronics16", backgroundColor:"#ffffff"
 		state "grouped", label:'Grouped', icon:"st.Electronics.electronics16", backgroundColor:"#ffffff"
 	}
 
@@ -68,10 +71,10 @@ metadata {
 
 	// Row 2
 	standardTile("status", "device.status", width: 1, height: 1, decoration: "flat", canChangeIcon: true) {
-		state "playing", label:'Playing', action:"music Player.pause", icon:"st.Electronics.electronics16", nextState:"paused", backgroundColor:"#ffffff"
+		state "playing", label:'Playing', action:"music Player.stop", icon:"st.Electronics.electronics16", nextState:"paused", backgroundColor:"#ffffff"
 		state "stopped", label:'Stopped', action:"music Player.play", icon:"st.Electronics.electronics16", nextState:"playing", backgroundColor:"#ffffff"
+		state "no_media_present", label:'No Media', icon:"st.Electronics.electronics16", backgroundColor:"#ffffff"
 		state "paused", label:'Paused', action:"music Player.play", icon:"st.Electronics.electronics16", nextState:"playing", backgroundColor:"#ffffff"
-		state "grouped", label:'Grouped', action:"", icon:"st.Electronics.electronics16", backgroundColor:"#ffffff"
 	}
 	standardTile("stop", "device.status", width: 1, height: 1, decoration: "flat") {
 		state "default", label:'', action:"music Player.stop", icon:"st.sonos.stop-btn", backgroundColor:"#ffffff"
@@ -97,8 +100,9 @@ metadata {
 	standardTile("refresh", "device.status", inactiveLabel: false, decoration: "flat") {
 		state "default", label:"", action:"refresh.refresh", icon:"st.secondary.refresh", backgroundColor:"#ffffff"
 	}
-	standardTile("playStation", "device.status", width: 1, height: 1, decoration: "flat") {
-		state "default", label:'', action:"playStation", icon:"st.sonos.play-btn", backgroundColor:"#ffffff"
+	standardTile("doNotDisturb", "device.doNotDisturb", width: 1, height: 1, decoration: "flat", canChangeIcon: true) {
+		state "off", label:"MSG Enabled", action:"switchDoNotDisturb", icon:"st.alarm.beep.beep",nextState:"on"
+		state "on", label:"MSG Disabled", action:"switchDoNotDisturb", icon:"st.custom.sonos.muted",nextState:"off"
 	}
 	standardTile("unsubscribe", "device.status", width: 1, height: 1, decoration: "flat") {
 		state "previous", label:'Unsubscribe', action:"unsubscribe", backgroundColor:"#ffffff"
@@ -113,7 +117,7 @@ metadata {
 		"status","stop","mute",
 		"levelSliderControl",
 		"currentSong",
-		"refresh","playStation"
+		"refresh", "doNotDisturb"
 		
 		
 		//,"unsubscribe"
@@ -165,16 +169,9 @@ def parse(description) {
 					def currentStatus = statusText(node.CurrentTransportState.text())
 					if (currentStatus) {
 						if (currentStatus != "TRANSITIONING") {
-							def coordinator = device.getDataValue('coordinator')
-							updateDataValue('currentStatus', currentStatus)
-							if (coordinator) {
-								sendEvent(name: "status", value: "grouped", data: [source: 'xml.Body.GetTransportInfoResponse'])
-								sendEvent(name: "switch", value: "off", displayed: false)
-							}
-							else {
-								sendEvent(name: "status", value: currentStatus, data: [source: 'xml.Body.GetTransportInfoResponse'])
-								sendEvent(name: "switch", value: currentStatus=="playing" ? "on" : "off", displayed: false)
-							}
+							sendEvent(name: "status", value: currentStatus, data: [source: 'xml.Body.GetTransportInfoResponse'])
+							sendEvent(name: "switch", value: currentStatus=="playing" ? "on" : "off", displayed: false)
+
 						}
 					}
 				}
@@ -182,48 +179,15 @@ def parse(description) {
 				if (node.size()) {
 					def currentVolume = statusText(node.CurrentVolume.text())
 					if (currentVolume) {
-						def coordinator = device.getDataValue('coordinator')
                         sendEvent(name: "level", value: currentVolume, description: description)
 					}
 				}
 
-				// Process group change
-				node = msg.xml.property.ZoneGroupState
-				if (node.size()) {
-					// Important to use parser rather than slurper for this version of Groovy
-					def xml1 = new XmlParser().parseText(node.text())
-					def myNode =  xml1.ZoneGroup.ZoneGroupMember.find {it.'@UUID' == uuid}
-					def myCoordinator = myNode.parent().'@Coordinator'
-
-					if (myCoordinator != myNode.'@UUID') {
-						// this player is grouped, find the coordinator
-
-						def coordinator = xml1.ZoneGroup.ZoneGroupMember.find {it.'@UUID' == myCoordinator}
-						def coordinatorDni = dniFromUri(coordinator.'@Location')
-
-						updateDataValue("coordinator", coordinatorDni)
-						updateDataValue("isGroupCoordinator", "")
-
-						def coordinatorDevice = parent.getChildDevice(coordinatorDni)
-						sendEvent(name: "trackDescription", value: "[Grouped with ${coordinatorDevice.displayName}]")
-						sendEvent(name: "status", value: "grouped", data: [
-							coordinator: [displayName: coordinatorDevice.displayName, id: coordinatorDevice.id, deviceNetworkId: coordinatorDevice.deviceNetworkId]
-						])
-						sendEvent(name: "switch", value: "off", displayed: false)
-					}
-					else {
-						// Not grouped
-						updateDataValue("coordinator", "")
-						updateDataValue("isGroupCoordinator", myNode.parent().ZoneGroupMember.size() > 1 ? "true" : "")
-					}
-					// Return a command to read the current status again to take care of status and group events arriving at
-					// about the same time, but in the reverse order
-					results << getCurrentStatus()
-				}
+				
 
 				// Process subscription update
 				node = msg.xml.property.LastChange
-				if (node.text().size()>0) {
+				if (node?.text()?.size()>0) {
 					
 					def xml1 = parseXml(node.text())
 
@@ -231,17 +195,9 @@ def parse(description) {
 					def currentStatus = statusText(xml1.InstanceID.TransportState.'@val'.text())
 					if (currentStatus) {
 						if (currentStatus != "TRANSITIONING") {
-							def coordinator = device.getDataValue('coordinator')
 							updateDataValue('currentStatus', currentStatus)
-
-							if (coordinator) {
-								sendEvent(name: "status", value: "grouped", data: [source: 'xml.property.LastChange.InstanceID.TransportState'])
-								sendEvent(name: "switch", value: "off", displayed: false)
-							}
-							else {
-								sendEvent(name: "status", value: currentStatus, data: [source: 'xml.property.LastChange.InstanceID.TransportState'])
-								sendEvent(name: "switch", value: currentStatus=="playing" ? "on" : "off", displayed: false)
-							}
+							sendEvent(name: "status", value: currentStatus, data: [source: 'xml.property.LastChange.InstanceID.TransportState'])
+							sendEvent(name: "switch", value: currentStatus=="playing" ? "on" : "off", displayed: false)
 						}
 					}
 
@@ -261,56 +217,71 @@ def parse(description) {
 					// Track data
 					def trackUri = xml1.InstanceID.CurrentTrackURI.'@val'.text()
 					def transportUri = xml1.InstanceID.AVTransportURI.'@val'.text()
-					def enqueuedUri = xml1.InstanceID.EnqueuedTransportURI.'@val'.text() 
 					def trackNumber = xml1.InstanceID.CurrentTrack.'@val'.text()
 										
-		
+
 					
 					
 					
 					if (trackUri.contains("//s3.amazonaws.com/smartapp-") || transportUri.contains("//s3.amazonaws.com/smartapp-") ) {
-						//log.trace "Skipping event generation for sound file $trackUri"
+						log.trace "Skipping event generation for sound file $trackUri"
 					}
 					else {
-                    	
-						if (transportUri) {
-							state.transportUri = transportUri
-						}else{
-							transportUri = state.transportUri
-						}
-
+						
+						transportUri = transportUri ? transportUri : state.transportUri
+						transportUri = trackNumber.length() >0 ? transportUri.replaceAll(/fii%3d.*?%26/, "fii%3d${Math.max(trackNumber.toInteger() - 1,0)}%26") : transportUri
+						state.transportUri = transportUri
+					
 						def trackMeta = xml1.InstanceID.CurrentTrackMetaData.'@val'.text()
 						def transportMeta = xml1.InstanceID.AVTransportURIMetaData.'@val'.text()
-						def enqueuedMeta = xml1.InstanceID.EnqueuedTransportURIMetaData.'@val'.text()
+						
 
-					
 						if (trackMeta || transportMeta) {
-							def isRadioStation = enqueuedUri.startsWith("x-sonosapi-stream:")
-
-							def metaData = enqueuedMeta ? enqueuedMeta :  transportMeta
+							def metaDataLoad = trackMeta  ? trackMeta : transportMeta
+							def metaData = metaDataLoad?.startsWith("<item") ?  "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\">$metaDataLoad</DIDL-Lite>": metaDataLoad 
 							def stationMetaXml = metaData ? parseXml(metaData) : null
-
-							def trackXml = (trackMeta && !isRadioStation) || !stationMetaXml ? parseXml(trackMeta) : stationMetaXml
-
+							
+							
+							
+							// Use the track metadata for song ID unless it's a radio station
+							//def trackXml = (trackMeta && !isRadioStation) || !stationMetaXml ? parseXml(trackMeta) : stationMetaXml
+							def trackXml = stationMetaXml;
+							// Song properties
 							def currentName = trackXml.item.title.text()
 							def currentArtist = trackXml.item.creator.text()
 							def currentAlbum  = trackXml.item.album.text()
+							def currentItemId  = trackXml.item.'@id'.text()
+							def currentParentId  = trackXml.item.'@parentID'.text()
 							def currentTrackDescription = currentName
+							
+							if (transportUri.contains(currentParentId) && currentItemId){
+								transportUri = transportUri.replaceAll(/%26fid%3d.*?%26/, "%26fid%3d$currentItemId%26")
+								state.transportUri = transportUri
+							}
+							
+							
 							def descriptionText = "$device.displayName is playing $currentTrackDescription"
 							if (currentArtist) {
 								currentTrackDescription += " - $currentArtist"
 								descriptionText += " by $currentArtist"
 							}
 
+							// Track Description Event
 							sendEvent(name: "trackDescription",
 								value: currentTrackDescription,
 								descriptionText: descriptionText
 							)
 
+							// Have seen cases where there is no engueued or transport metadata. Haven't figured out how to resume in that case
+							// so not creating a track data event.
+							//
 							if (stationMetaXml) {
-								def station = (transportUri?.startsWith("x-rincon-queue:") || enqueuedUri?.contains("savedqueues")) ? currentName : stationMetaXml.item.title.text()
+								// Track Data Event
+								// Use track description for the data event description unless it is a queued song (to support resumption & use in mood music)
+								def station =  currentName
 
-								def uri = transportUri
+
+								def uri = transportUri ?  transportUri : trackUri
 								def previousState = device.currentState("trackData")?.jsonValue
 								def isDataStateChange = !previousState || (previousState.station != station || previousState.metaData != metaData)
 
@@ -329,13 +300,9 @@ def parse(description) {
 									uri: uri,
 									trackUri: trackUri,
 									transportUri: transportUri,
-									enqueuedUri: enqueuedUri,
+									enqueuedUri: "",
 									metaData: metaData,
 								]
-
-								if (trackMeta != metaData) {
-									trackDataValue.trackMetaData = trackMeta
-								}
 								results << createEvent(name: "trackData",
 									value: trackDataValue.encodeAsJSON(),
 									descriptionText: currentDescription,
@@ -395,6 +362,8 @@ def off(){
 	stop()
 }
 
+
+
 def setModel(String model)
 {
 	sendEvent(name:"model",value:model,isStateChange:true)
@@ -402,92 +371,65 @@ def setModel(String model)
 
 def setAVTCURL(String avtcurl)
 {
-	sendEvent(name:"avtcurl",value:avtcurl,isStateChange:true)
+	state.avtcurl = avtcurl
 }
 def setAVTEURL(String avteurl)
 {
-	sendEvent(name:"avteurl",value:avteurl,isStateChange:true)
+	state.avteurl = avteurl
 }
 def setRCCURL(String rccurl)
 {
-	sendEvent(name:"rccurl",value:rccurl,isStateChange:true)
+	state.rccurl = rccurl
 }
 def setRCEURL(String rceurl)
 {
-	sendEvent(name:"rceurl",value:rceurl,isStateChange:true)
+	state.rceurl = rceurl
 }
+
 
 def poll() {
 	refresh()
 }
 
 def refresh() {
-	def result = subscribe()
-	result << getCurrentStatus()
-	result << getVolume()
-	result.flatten()
+	def eventTime = new Date().time
+	if( eventTime > state.secureEventTime ?:0)
+	{
+		def result = subscribe()
+		result << getCurrentStatus()
+		result << getVolume()
+		result.flatten()
+	}
 }
 
-// For use by apps, sets all levels if sent to a non-coordinator in a group
 def setLevel(val)
 {
-	coordinate({
-		setOtherLevels(val)
-		setLocalLevel(val)
-	}, {
-		it.setLevel(val)
-	})
+	setLocalLevel(val)
 }
 
-// For use by tiles, sets all levels if a coordinator, otherwise sets only the local one
 def tileSetLevel(val)
 {
-	coordinate({
-		setOtherLevels(val)
-		setLocalLevel(val)
-	}, {
-		setLocalLevel(val)
-	})
-}
+	setLocalLevel(val)
 
-def playStation()
-{   
-	if(!(settings.confStationURI?.trim())){
-		settings.confStationURI = "http://2223.live.streamtheworld.com:80/CLASSIC106_SC"
-	}
-	def result = []
-	result << mediaRendererAction("Stop")
-	result << setTrack(settings.confStationURI)
-	result << mediaRendererAction("Play")
-	result = result.flatten()
-	result
+}
+def setDoNotDisturb(val)
+{
+	sendEvent(name:"doNotDisturb",value:val,isStateChange:true)
 }
 
 // Always sets only this level
 def setLocalLevel(val, delay=0) {
 	def v = Math.max(Math.min(Math.round(val), 100), 0)
-
 	def result = []
 	if (delay) {
 		result << delayAction(delay)
 	}
-	result << mediaRendererAction("SetVolume", "RenderingControl", device.currentValue("rccurl") , [InstanceID: 0, Channel: "Master", DesiredVolume: v])
-	//result << delayAction(500),
-	result << mediaRendererAction("GetVolume", "RenderingControl", device.currentValue("rccurl"), [InstanceID: 0, Channel: "Master"])
+	result << mediaRendererAction("SetVolume", "RenderingControl", state.rccurl , [InstanceID: 0, Channel: "Master", DesiredVolume: v])
+	//result << delayAction(50)
+	result << mediaRendererAction("GetVolume", "RenderingControl", state.rccurl, [InstanceID: 0, Channel: "Master"])
 	result
 }
 
-private setOtherLevels(val, delay=0) {
-	if (device.getDataValue('isGroupCoordinator')) {
-		def previousMaster = device.currentState("level")?.integerValue
-		parent.getChildDevices().each {child ->
-			if (child.getDeviceDataByName("coordinator") == device.deviceNetworkId) {
-				def newLevel = childLevel(previousMaster, val, child.currentState("level")?.integerValue)
-				child.setLocalLevel(newLevel, delay)
-			}
-		}
-	}
-}
 
 private childLevel(previousMaster, newMaster, previousChild)
 {
@@ -504,307 +446,298 @@ private childLevel(previousMaster, newMaster, previousChild)
 	}
 }
 
-def getGroupStatus() {
-	def result = coordinate({device.currentValue("status")}, {it.currentValue("status")})
-	result
-}
 
 def play() {
-	coordinate({mediaRendererAction("Play")}, {it.play()})
+	mediaRendererAction("Play")
 	
 }
 
 def stop() {
-	coordinate({mediaRendererAction("Stop")}, {it.stop()})
+	mediaRendererAction("Stop")
 }
 
 def pause() {
-	coordinate({mediaRendererAction("Pause")}, {it.pause()})
+	mediaRendererAction("Pause")
 }
 
 def nextTrack() {
-	coordinate({mediaRendererAction("Next")}, {it.nextTrack()})
+	mediaRendererAction("Next")
 }
 
 def previousTrack() {
-	coordinate({mediaRendererAction("Previous")}, {it.previousTrack()})
+	mediaRendererAction("Previous")
 }
 
 def seek(trackNumber) {
-	coordinate({mediaRendererAction("Seek", "AVTransport", device.currentValue("avtcurl") , [InstanceID: 0, Unit: "TRACK_NR", Target: trackNumber])}, {it.seek(trackNumber)})
+	mediaRendererAction("Seek", "AVTransport", state.avtcurl , [InstanceID: 0, Unit: "TRACK_NR", Target: trackNumber])
 }
 
 def mute()
 {
 	// TODO - handle like volume?
-	coordinate({mediaRendererAction("SetMute", "RenderingControl", device.currentValue("rccurl"), [InstanceID: 0, Channel: "Master", DesiredMute: 1])}, {it.mute()})
+	mediaRendererAction("SetMute", "RenderingControl", state.rccurl, [InstanceID: 0, Channel: "Master", DesiredMute: 1])
 }
 
 def unmute()
 {
 	// TODO - handle like volume?
-	coordinate({mediaRendererAction("SetMute", "RenderingControl", device.currentValue("rccurl"), [InstanceID: 0, Channel: "Master", DesiredMute: 0])}, {it.unmute()})
+	mediaRendererAction("SetMute", "RenderingControl", state.rccurl, [InstanceID: 0, Channel: "Master", DesiredMute: 0])
 }
 
 def setPlayMode(mode)
 {
-	coordinate({mediaRendererAction("SetPlayMode", [InstanceID: 0, NewPlayMode: mode])}, {it.setPlayMode(mode)})
+	mediaRendererAction("SetPlayMode", [InstanceID: 0, NewPlayMode: mode])
 }
-
+def switchDoNotDisturb(){
+	setDoNotDisturb(device.currentValue("doNotDisturb") == "on" ? "off":"on") 
+}
 
 def playTextAndResume(text, volume=null)
 {
-	coordinate({
-		def sound = textToSpeech(text)
-		playTrackAndResume(sound.uri, (sound.duration as Integer) + 1, volume)
-	}, {it.playTextAndResume(text, volume)})
+	def sound = textToSpeech(text)
+	playTrackAndResume(sound.uri, (sound.duration as Integer) + 1, volume)
 }
 
 def playTrackAndResume(uri, duration, volume=null) {
-	coordinate({
-        def currentTrack = device.currentState("trackData")?.jsonValue
-		def currentVolume = device.currentState("level")?.integerValue
-		def currentStatus = device.currentValue("status")
-		def level = volume as Integer
-		def result = []
+	def eventTime = new Date().time
+	def currentTrack = device.currentState("trackData")?.jsonValue
+	def currentVolume = device.currentState("level")?.integerValue
+	def currentStatus = device.currentValue("status")
+	def level = volume as Integer
+	def actionsDelayTime = actionsDelay ? (actionsDelay as Integer) * 1000 :0
+	def result = []
+	if( device.currentValue("doNotDisturb") != "on"  && eventTime > state.secureEventTime ?:0){
 		result << mediaRendererAction("Stop")
-		if (level) {
-			//result << mediaRendererAction("Stop")
-			result << setLocalLevel(level)
+		if(actionsDelayTime > 0){
+			result << delayAction(actionsDelayTime)
 		}
+		if (level) {
+			result << setLocalLevel(level)
+			result << delayAction(actionsDelayTime + 500)
+		}
+		
 		result << setTrack(uri)
+		if(actionsDelayTime > 0){
+			result << delayAction(actionsDelayTime)
+		}
 		result << mediaRendererAction("Play")
-
-		if (currentTrack ) {
-			def delayTime = ((duration as Integer) * 1000)+3000
-			if (level) {
-				delayTime += 1000
+		if (duration == "1"){
+			def matcher = uri =~ /[^\/]+.mp3/
+			if (matcher){
+				duration =  Math.max(Math.round(matcher[0].length()/5), 5) 
 			}
+		}
+		def delayTime = ((duration as Integer) * 1000) 
+		if (level) {
+			delayTime += 1000
+		}
+		delayTime = customDelay ? ((customDelay as Integer) * 1000) + delayTime : delayTime
+		state.secureEventTime = eventTime + delayTime + 10000
+		if (currentTrack ) {
 			result << delayAction(delayTime)
-            result << mediaRendererAction("Stop")
+			result << mediaRendererAction("Stop")
+			if(actionsDelayTime > 0){
+				result << delayAction(actionsDelayTime)
+			}
 			if (level) {
 				result << setLocalLevel(currentVolume)
+				result << delayAction(actionsDelayTime + 500)
 			}
 			result << setTrack(currentTrack)
 			if (currentStatus == "playing") {
+				if(actionsDelayTime > 0){
+					result << delayAction(actionsDelayTime)
+				}
 				result << mediaRendererAction("Play")
 			}
 		}
-
 		result = result.flatten()
-		result
-	}, {it.playTrackAndResume(uri, duration, volume)})
+	}
+	else{
+		log.trace "previous notification in progress or Do Not Disturb Activated"
+	}
+	result
 }
 
 def playTextAndRestore(text, volume=null)
 {
-	coordinate({
-		def sound = textToSpeech(text)
-		playTrackAndRestore(sound.uri, (sound.duration as Integer) + 1, volume)
-	}, {it.playTextAndRestore(text, volume)})
+	def sound = textToSpeech(text)
+	playTrackAndRestore(sound.uri, (sound.duration as Integer) + 1, volume)
 }
 
 def playTrackAndRestore(uri, duration, volume=null) {
-	coordinate({
-		def currentTrack = device.currentState("trackData")?.jsonValue
-		currentTrack = device.currentState("trackData")?.jsonValue
-		currentTrack = device.currentState("trackData")?.jsonValue
-		def currentVolume = device.currentState("level")?.integerValue
-		def currentStatus = device.currentValue("status")
-		def level = volume as Integer
-
-		def result = []
-		if (level) {
-			result << mediaRendererAction("Stop")
-			result << setLocalLevel(level)
+	def eventTime = new Date().time
+	def currentTrack = device.currentState("trackData")?.jsonValue
+	def currentVolume = device.currentState("level")?.integerValue
+	def currentStatus = device.currentValue("status")
+	def level = volume as Integer
+	def actionsDelayTime = actionsDelay ? (actionsDelay as Integer) * 1000 :0
+	def result = []
+	if( device.currentValue("doNotDisturb") != "on"  && eventTime > state.secureEventTime ?:0){
+		result << mediaRendererAction("Stop")
+		if(actionsDelayTime > 0){
+			result << delayAction(actionsDelayTime)
 		}
-
+		if (level) {
+			result << setLocalLevel(level)
+			result << delayAction(actionsDelayTime + 500)
+		}
+		
 		result << setTrack(uri)
+		if(actionsDelayTime > 0){
+			result << delayAction(actionsDelayTime)
+		}
 		result << mediaRendererAction("Play")
-
-		if (currentTrack) {
-			def delayTime = ((duration as Integer) * 1000)+3000
-			if (level) {
-				delayTime += 1000
+		if (duration == "1"){
+			def matcher = uri =~ /[^\/]+.mp3/
+			if (matcher){
+				duration =  Math.max(Math.round(matcher[0].length()/5), 5) 
 			}
+		}
+		def delayTime = ((duration as Integer) * 1000) 
+		if (level) {
+			delayTime += 1000
+		}
+		delayTime = customDelay ? ((customDelay as Integer) * 1000) + delayTime : delayTime
+		state.secureEventTime = eventTime + delayTime + 10000
+		if (currentTrack ) {
 			result << delayAction(delayTime)
+			result << mediaRendererAction("Stop")
+			if(actionsDelayTime > 0){
+				result << delayAction(actionsDelayTime)
+			}
 			if (level) {
-				result << mediaRendererAction("Stop")
 				result << setLocalLevel(currentVolume)
+				result << delayAction(actionsDelayTime + 500)
 			}
 			result << setTrack(currentTrack)
 		}
-
 		result = result.flatten()
-		result
-	}, {it.playTrackAndResume(uri, duration, volume)})
+	}
+	else{
+		log.trace "previous notification in progress or Do Not Disturb Activated"
+	}
+	result
 }
 
 def playTextAndTrack(text, trackData, volume=null)
 {
-	coordinate({
-		def sound = textToSpeech(text)
-		playSoundAndTrack(sound.uri, (sound.duration as Integer) + 1, trackData, volume)
-	}, {it.playTextAndResume(text, volume)})
+	def sound = textToSpeech(text)
+	playSoundAndTrack(sound.uri, (sound.duration as Integer) + 1, trackData, volume)
 }
 
 def playSoundAndTrack(soundUri, duration, trackData, volume=null) {
-	coordinate({
-		def level = volume as Integer
-		def result = []
-		if (level) {
-			result << mediaRendererAction("Stop")
-			result << setLocalLevel(level)
-		}
+	def level = volume as Integer
+	def result = []
+	result << mediaRendererAction("Stop")
+	if (level) {
+		result << setLocalLevel(level)
+	}
 
-		result << setTrack(soundUri)
-		result << mediaRendererAction("Play")
+	result << setTrack(soundUri)
+	result << mediaRendererAction("Play")
 
-		def delayTime = ((duration as Integer) * 1000)+3000
-		result << delayAction(delayTime)
+	def delayTime = ((duration as Integer) * 1000)+3000
+	result << delayAction(delayTime)
 
-		result << setTrack(trackData)
-		result << mediaRendererAction("Play")
+	result << setTrack(trackData)
+	result << mediaRendererAction("Play")
 
-		result = result.flatten()
-		result
-	}, {it.playTrackAndResume(uri, duration, volume)})
+	result = result.flatten()
+	result
 }
 
 def playTrackAtVolume(String uri, volume) {
-	coordinate({
-		def result = []
-		result << mediaRendererAction("Stop")
-		result << setLocalLevel(volume as Integer)
-		result << setTrack(uri, metaData)
-		result << mediaRendererAction("Play")
-		result.flatten()
-	}, {it.playTrack(uri, metaData)})
+
+	def result = []
+	result << mediaRendererAction("Stop")
+	result << setLocalLevel(volume as Integer)
+	result << setTrack(uri, metaData)
+	result << mediaRendererAction("Play")
+	result.flatten()
 }
 
 def playTrack(String uri, metaData="") {
-	coordinate({
-		def result = setTrack(uri, metaData)
-		result << mediaRendererAction("Play")
-		result.flatten()
-	}, {it.playTrack(uri, metaData)})
+	def result = setTrack(uri, metaData)
+	result << mediaRendererAction("Play")
+	result.flatten()
 }
 
 def playTrack(Map trackData) {
-	coordinate({
-		def result = setTrack(trackData)
-		//result << delayAction(1000)
-		result << mediaRendererAction("Play")
-		result.flatten()
-	}, {it.playTrack(trackData)})
+	def result = setTrack(trackData)
+	result << mediaRendererAction("Play")
+	result.flatten()
 }
 
 def setTrack(Map trackData) {
-	coordinate({
 		def data = trackData
 		def result = []
-		if ((data.transportUri.startsWith("x-rincon-queue:") || data.enqueuedUri.contains("savedqueues")) && data.trackNumber != null) {
-		// TODO - Clear queue?
-			def uri = device.getDataValue('queueUri')
-			result << mediaRendererAction("RemoveAllTracksFromQueue", [InstanceID: 0])
-			//result << delayAction(500)
-			result << mediaRendererAction("AddURIToQueue", [InstanceID: 0, EnqueuedURI: data.uri, EnqueuedURIMetaData: data.metaData, DesiredFirstTrackNumberEnqueued: 0, EnqueueAsNext: 1])
-			//result << delayAction(500)
-			result << mediaRendererAction("SetAVTransportURI", [InstanceID: 0, CurrentURI: uri, CurrentURIMetaData: metaData])
-			//result << delayAction(500)
-			result << mediaRendererAction("Seek", "AVTransport", device.currentValue("avtcurl"), [InstanceID: 0, Unit: "TRACK_NR", Target: data.trackNumber])
-		} else {
-			result = setTrack(data.uri, data.metaData)
-		}
+		result = setTrack(data.uri, data.metaData)
 		result.flatten()
-	}, {it.setTrack(trackData)})
 }
 
 def setTrack(String uri, metaData="")
 {
-	def fileName = "" 
-	if (metaData?.size() == 0){
-		fileName= getExtensionFromFilename(uri)
-		metaData="<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\"><item id=\"94e5941a264e3c138c33\" parentID=\"8ff689139b04ce1fecb9\" restricted=\"1\"><upnp:class>object.item.audioItem.musicTrack</upnp:class><upnp:album>SmartThings Catalog</upnp:album><upnp:artist>SmartThings</upnp:artist><upnp:albumArtURI>https://graph.api.smartthings.com/api/devices/icons/st.Entertainment.entertainment2-icn?displaySize=2x</upnp:albumArtURI><dc:title>$fileName</dc:title><res duration=\"0:10:00.000\" protocolInfo=\"http-get:*:audio/mpeg:DLNA.ORG_PN=MP3;DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01500000000000000000000000000000\" >$uri</res></item> </DIDL-Lite>"
-	}
-	coordinate({
-		def result = []
-		result << mediaRendererAction("SetAVTransportURI", [InstanceID: 0, CurrentURI: uri, CurrentURIMetaData: metaData])
-		result
-	}, {it.setTrack(uri, metaData)})
+	metaData = metaData?:"<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\"><item id=\"1\" parentID=\"1\" restricted=\"1\"><upnp:class>object.item.audioItem.musicTrack</upnp:class><upnp:album>SmartThings Catalog</upnp:album><upnp:artist>SmartThings</upnp:artist><upnp:albumArtURI>https://graph.api.smartthings.com/api/devices/icons/st.Entertainment.entertainment2-icn?displaySize=2x</upnp:albumArtURI><dc:title>SmartThings Message</dc:title><res protocolInfo=\"http-get:*:audio/mpeg:DLNA.ORG_PN=MP3;DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01500000000000000000000000000000\" >$uri</res></item> </DIDL-Lite>"
+	def result = []
+	result << mediaRendererAction("SetAVTransportURI", [InstanceID: 0, CurrentURI: uri, CurrentURIMetaData: metaData])
+	result
 }
 
 def resumeTrack(Map trackData = null) {
-	coordinate({
-		def result = restoreTrack(trackData)
-		//result << delayAction(500)
-		result << mediaRendererAction("Play")
-		result
-	}, {it.resumeTrack(trackData)})
+
+	def result = restoreTrack(trackData)
+	result << mediaRendererAction("Play")
+	result
 }
 
 def restoreTrack(Map trackData = null) {
-	coordinate({
-		def result = []
-		def data = trackData
-		if (!data) {
-			data = device.currentState("trackData")?.jsonValue
-		}
-		if (data) {
-			if ((data.transportUri.startsWith("x-rincon-queue:") || data.enqueuedUri.contains("savedqueues")) && data.trackNumber != null) {
-				def uri = device.getDataValue('queueUri')
-				result << mediaRendererAction("SetAVTransportURI", [InstanceID: 0, CurrentURI: uri, CurrentURIMetaData: data.metaData])
-				//result << delayAction(500)
-				result << mediaRendererAction("Seek", "AVTransport",  device.currentValue("avtcurl"), [InstanceID: 0, Unit: "TRACK_NR", Target: data.trackNumber])
-			} else {
-				result << mediaRendererAction("SetAVTransportURI", [InstanceID: 0, CurrentURI: data.uri, CurrentURIMetaData: data.metaData])
-			}
-		}
-		else {
-			log.warn "Previous track data not found"
-		}
-		result
-	}, {it.restoreTrack(trackData)})
+
+	def result = []
+	def data = trackData
+	if (!data) {
+		data = device.currentState("trackData")?.jsonValue
+	}
+	if (data) {
+		result << mediaRendererAction("SetAVTransportURI", [InstanceID: 0, CurrentURI: data.uri, CurrentURIMetaData: data.metaData])
+	}
+	else {
+		log.warn "Previous track data not found"
+	}
+	result
 }
 
 def playText(String msg) {
-	coordinate({
-		def result = setText(msg)
-		result << mediaRendererAction("Play")
-	}, {it.playText(msg)})
+	def result = setText(msg)
+	result << mediaRendererAction("Play")
 }
 
 def setText(String msg) {
-	coordinate({
 		def sound = textToSpeech(msg)
 		setTrack(sound.uri)
-	}, {it.setText(msg)})
 }
 
 // Custom commands
 
 def subscribe() {
 	def result = []
-	result << subscribeAction(device.currentValue("avteurl"))
+	result << subscribeAction(state.avteurl)
 	result << delayAction(10000)
-	result << subscribeAction(device.currentValue("rceurl"))
-	//result << delayAction(20000)
-	//result << subscribeAction("/ZoneGroupTopology/Event")
-
+	result << subscribeAction(state.rceurl)
 	result
 }
 def unsubscribe() {
 	def result = [
-		unsubscribeAction(device.currentValue("avteurl"), device.getDataValue('subscriptionId')),
-		unsubscribeAction(device.currentValue("rceurl"), device.getDataValue('subscriptionId')),
+		unsubscribeAction(state.avteurl, device.getDataValue('subscriptionId')),
+		unsubscribeAction(state.rceurl, device.getDataValue('subscriptionId')),
 
 		
-		unsubscribeAction(device.currentValue("avteurl"), device.getDataValue('subscriptionId1')),
-		unsubscribeAction(device.currentValue("rceurl"), device.getDataValue('subscriptionId1')),
+		unsubscribeAction(state.avteurl, device.getDataValue('subscriptionId1')),
+		unsubscribeAction(state.rceurl, device.getDataValue('subscriptionId1')),
 
 		
-		unsubscribeAction(device.currentValue("avteurl"), device.getDataValue('subscriptionId2')),
-		unsubscribeAction(device.currentValue("rceurl"), device.getDataValue('subscriptionId2'))
+		unsubscribeAction(state.avteurl, device.getDataValue('subscriptionId2')),
+		unsubscribeAction(state.rceurl, device.getDataValue('subscriptionId2'))
 	]
 	updateDataValue("subscriptionId", "")
 	updateDataValue("subscriptionId1", "")
@@ -814,7 +747,7 @@ def unsubscribe() {
 
 def getVolume()
 {
-	mediaRendererAction("GetVolume", "RenderingControl", device.currentValue("rccurl"), [InstanceID: 0, Channel: "Master"])
+	mediaRendererAction("GetVolume", "RenderingControl", state.rccurl, [InstanceID: 0, Channel: "Master"])
 }
 
 def getCurrentMedia()
@@ -843,18 +776,18 @@ private getCallBackAddress()
 
 private mediaRendererAction(String action) {
 	if(action=="Play"){
-		mediaRendererAction(action, "AVTransport", device.currentValue("avtcurl"), [InstanceID:0, Speed:1])
+		mediaRendererAction(action, "AVTransport", state.avtcurl, [InstanceID:0, Speed:1])
     }else{
-		mediaRendererAction(action, "AVTransport", device.currentValue("avtcurl"), [InstanceID:0])
+		mediaRendererAction(action, "AVTransport", state.avtcurl, [InstanceID:0])
     }
 }
 
 private mediaRendererAction(String action, Map body) {
-	mediaRendererAction(action, "AVTransport", device.currentValue("avtcurl"), body)
+	mediaRendererAction(action, "AVTransport", state.avtcurl, body)
 }
 
 private mediaRendererAction(String action, String service, String path, Map body = [InstanceID:0, Speed:1]) {
-    def result = new physicalgraph.device.HubSoapAction(
+	def result = new physicalgraph.device.HubSoapAction(
 		path:    path ?: "/MediaRenderer/$service/Control",
 		urn:     "urn:schemas-upnp-org:service:$service:1",
 		action:  action,
@@ -902,6 +835,8 @@ private String convertHexToIP(hex) {
 	[convertHexToInt(hex[0..1]),convertHexToInt(hex[2..3]),convertHexToInt(hex[4..5]),convertHexToInt(hex[6..7])].join(".")
 }
 
+
+
 private getHostAddress() {
 	def parts = device.deviceNetworkId.split(":")
 	def ip = convertHexToIP(parts[0])
@@ -917,6 +852,8 @@ private statusText(s) {
 			return "paused"
 		case "STOPPED":
 			return "stopped"
+		case "NO_MEDIA_PRESENT":
+			return "no_media_present"
 		default:
 			return s
 	}
@@ -963,19 +900,3 @@ private hex(value, width=2) {
 	}
 	s
 }
-
-private coordinate(closure1, closure2) {
-	def coordinator = device.getDataValue('coordinator')
-	if (coordinator) {
-		closure2(parent.getChildDevice(coordinator))
-	}
-	else {
-		closure1()
-	}
-}
-private getExtensionFromFilename(fileName) {
-	
-  def returned_value = fileName.substring(fileName.lastIndexOf("/") + 1).substring(fileName.lastIndexOf("\\") + 1);
-  return returned_value
-}
-
