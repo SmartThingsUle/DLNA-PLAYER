@@ -1,5 +1,5 @@
 /** 
- *  MediaRenderer Player v 1.5.1
+ *  MediaRenderer Player v 1.5.2
  *
  *  Author: SmartThings - Ulises Mujica (Ule)
  *
@@ -127,7 +127,7 @@ metadata {
 
 // parse events into attributes
 def parse(description) {
-	def results = []
+    def results = []
 	try {
 		def msg = parseLanMessage(description)
 		if (msg.headers)
@@ -179,8 +179,8 @@ def parse(description) {
 				node = msg.xml.Body.GetVolumeResponse
 				if (node.size()) {
 					def currentVolume = statusText(node.CurrentVolume.text())
-					if (currentVolume) {
-                        sendEvent(name: "level", value: currentVolume, description: description)
+                    if (currentVolume) {
+                        sendEvent(name: "level", value: currentVolume, description: "$device.displayName volume is $currentVolume")
 					}
 				}
 
@@ -205,8 +205,10 @@ def parse(description) {
 					// Volume level
 					def currentLevel = xml1.InstanceID.Volume.find{it.'@channel' == 'Master'}.'@val'.text()
 					if (currentLevel) {
-						sendEvent(name: "level", value: currentLevel, description: description)
+                    	log.info "Volume $currentLevel"
+                        sendEvent(name: "level", value: currentLevel, description: "$device.displayName volume is $currentLevel")
 					}
+                    
 
 					// Mute status
 					def currentMute = xml1.InstanceID.Mute.find{it.'@channel' == 'Master'}.'@val'.text()
@@ -268,9 +270,10 @@ def parse(description) {
 							}
 
 							// Track Description Event
+                            log.info descriptionText
 							sendEvent(name: "trackDescription",
-								value: currentTrackDescription,
-								descriptionText: descriptionText
+								value: currentTrackDescription.replaceAll("_"," "),
+								descriptionText: descriptionText.replaceAll("_"," ")
 							)
 
 							// Have seen cases where there is no engueued or transport metadata. Haven't figured out how to resume in that case
@@ -393,10 +396,12 @@ def poll() {
 }
 
 def refresh() {
+	
 	def eventTime = new Date().time
 	if( eventTime > state.secureEventTime ?:0)
 	{
-		def result = subscribe()
+		log.info "Refresh()"
+        def result = subscribe()
 		result << getCurrentStatus()
 		result << getVolume()
 		result.flatten()
@@ -520,7 +525,8 @@ def playTrackAndResume(uri, duration, volume=null) {
 	def level = volume as Integer
 	def actionsDelayTime = actionsDelay ? (actionsDelay as Integer) * 1000 :0
 	def result = []
-	if( !(currentDoNotDisturb  == "on_playing" && currentStatus == "playing" ) && !(currentDoNotDisturb  == "off_playing" && currentStatus != "playing" ) && currentDoNotDisturb != "on"  && eventTime > state.secureEventTime ?:0){
+	duration = duration ? (duration as Integer) : 0
+    if( !(currentDoNotDisturb  == "on_playing" && currentStatus == "playing" ) && !(currentDoNotDisturb  == "off_playing" && currentStatus != "playing" ) && currentDoNotDisturb != "on"  && eventTime > state.secureEventTime ?:0){
 		result << mediaRendererAction("Stop")
 		if(actionsDelayTime > 0){
 			result << delayAction(actionsDelayTime)
@@ -535,13 +541,13 @@ def playTrackAndResume(uri, duration, volume=null) {
 			result << delayAction(actionsDelayTime)
 		}
 		result << mediaRendererAction("Play")
-		if (duration == "1"){
+        if (duration == 1){
 			def matcher = uri =~ /[^\/]+.mp3/
 			if (matcher){
-				duration =  Math.max(Math.round(matcher[0].length()/5), 5) 
+				duration =  Math.max(Math.round(matcher[0].length()/5), 2) 
 			}
 		}
-		def delayTime = ((duration as Integer) * 1000) 
+		def delayTime = (duration * 1000) 
 		if (level) {
 			delayTime += 1000
 		}
@@ -588,7 +594,8 @@ def playTrackAndRestore(uri, duration, volume=null) {
 	def level = volume as Integer
 	def actionsDelayTime = actionsDelay ? (actionsDelay as Integer) * 1000 :0
 	def result = []
-	if( !(currentDoNotDisturb  == "on_playing" && currentStatus == "playing" ) && !(currentDoNotDisturb  == "off_playing" && currentStatus != "playing" ) && device.currentValue("doNotDisturb") != "on"  && eventTime > state.secureEventTime ?:0){
+	duration = duration ? (duration as Integer) : 0
+    if( !(currentDoNotDisturb  == "on_playing" && currentStatus == "playing" ) && !(currentDoNotDisturb  == "off_playing" && currentStatus != "playing" ) && currentDoNotDisturb != "on"  && eventTime > state.secureEventTime ?:0){
 		result << mediaRendererAction("Stop")
 		if(actionsDelayTime > 0){
 			result << delayAction(actionsDelayTime)
@@ -603,13 +610,13 @@ def playTrackAndRestore(uri, duration, volume=null) {
 			result << delayAction(actionsDelayTime)
 		}
 		result << mediaRendererAction("Play")
-		if (duration == "1"){
+        if (duration == 1){
 			def matcher = uri =~ /[^\/]+.mp3/
 			if (matcher){
-				duration =  Math.max(Math.round(matcher[0].length()/5), 5) 
+				duration =  Math.max(Math.round(matcher[0].length()/5), 2) 
 			}
 		}
-		def delayTime = ((duration as Integer) * 1000) 
+		def delayTime = (duration * 1000) 
 		if (level) {
 			delayTime += 1000
 		}
