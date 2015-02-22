@@ -206,7 +206,7 @@ def locationHandler(evt) {
 
 	if (parsedEvent?.ssdpTerm?.contains("urn:schemas-upnp-org:device:MediaRenderer:1"))
 	{ //SSDP DISCOVERY EVENTS
-
+		log.debug "MediaRenderer device found " + parsedEvent
 		def mediaRenderers = getMediaRendererPlayer()
 
 		
