@@ -1,8 +1,9 @@
 /** 
- *  MediaRenderer Player v 1.5.2
+ *  MediaRenderer Player v 1.5.3
  *
  *  Author: SmartThings - Ulises Mujica (Ule)
  *
+ * 
  */
 
 preferences {
@@ -137,7 +138,6 @@ def parse(description) {
 				hdr = hdr[0..35] + "..."
 			}
 
-			def uuid = ""
 			def sid = ""
 			if (msg.headers["SID"])
 			{
@@ -145,10 +145,6 @@ def parse(description) {
 				sid -= "uuid:"
 				sid = sid.trim()
 
-				def pos = sid.lastIndexOf("_")
-				if (pos > 0) {
-					uuid = sid[0..pos-1]
-				}
 			}
 
 			if (!msg.body) {
@@ -160,10 +156,14 @@ def parse(description) {
 
 				// Process response to getVolume()
 				def node = msg.xml.Body.GetVolumeResponse
-				if (node.size()) {
-					sendEvent(name: "level",value: node.CurrentVolume.text())
-				}
 
+				node = msg.xml.Body.GetVolumeResponse
+				if (node.size()) {
+					def currentVolume = node.CurrentVolume.text()
+					if (currentVolume) {
+                        sendEvent(name: "level", value: currentVolume, description: "$device.displayName Volume is $currentVolume")
+					}
+				}
 				// Process response to getCurrentStatus()
 				node = msg.xml.Body.GetTransportInfoResponse
 				if (node.size()) {
@@ -176,13 +176,7 @@ def parse(description) {
 						}
 					}
 				}
-				node = msg.xml.Body.GetVolumeResponse
-				if (node.size()) {
-					def currentVolume = statusText(node.CurrentVolume.text())
-                    if (currentVolume) {
-                        sendEvent(name: "level", value: currentVolume, description: "$device.displayName volume is $currentVolume")
-					}
-				}
+				
 
 				
 
@@ -194,19 +188,19 @@ def parse(description) {
 
 					// Play/pause status
 					def currentStatus = statusText(xml1.InstanceID.TransportState.'@val'.text())
-					if (currentStatus) {
+                    if (currentStatus) {
 						if (currentStatus != "TRANSITIONING") {
 							updateDataValue('currentStatus', currentStatus)
-							sendEvent(name: "status", value: currentStatus, data: [source: 'xml.property.LastChange.InstanceID.TransportState'])
+							sendEvent(name: "status", value: currentStatus, data: currentStatus, displayed: false)
 							sendEvent(name: "switch", value: currentStatus=="playing" ? "on" : "off", displayed: false)
 						}
+						if (currentStatus == "no_media_present") {sendEvent(name: "trackDescription",value: "",descriptionText: "", displayed: false)}
 					}
 
 					// Volume level
 					def currentLevel = xml1.InstanceID.Volume.find{it.'@channel' == 'Master'}.'@val'.text()
 					if (currentLevel) {
-                    	log.info "Volume $currentLevel"
-                        sendEvent(name: "level", value: currentLevel, description: "$device.displayName volume is $currentLevel")
+                        sendEvent(name: "level", value: currentLevel, description: "$device.displayName volume is $currentLevel",displayed: false)
 					}
                     
 
@@ -214,7 +208,7 @@ def parse(description) {
 					def currentMute = xml1.InstanceID.Mute.find{it.'@channel' == 'Master'}.'@val'.text()
 					if (currentMute) {
 						def value = currentMute == "1" ? "muted" : "unmuted"
-						sendEvent(name: "mute", value: value, descriptionText: "$device.displayName is $value")
+                        sendEvent(name: "mute", value: value, descriptionText: "$device.displayName is $value")
 					}
 
 					// Track data
@@ -270,11 +264,8 @@ def parse(description) {
 							}
 
 							// Track Description Event
-                            log.info descriptionText
-							sendEvent(name: "trackDescription",
-								value: currentTrackDescription.replaceAll("_"," "),
-								descriptionText: descriptionText.replaceAll("_"," ")
-							)
+
+							sendEvent(name: "trackDescription",value: currentTrackDescription.replaceAll("_"," "),descriptionText: descriptionText.replaceAll("_"," "))
 
 							// Have seen cases where there is no engueued or transport metadata. Haven't figured out how to resume in that case
 							// so not creating a track data event.
@@ -307,12 +298,7 @@ def parse(description) {
 									enqueuedUri: "",
 									metaData: metaData,
 								]
-								results << createEvent(name: "trackData",
-									value: trackDataValue.encodeAsJSON(),
-									descriptionText: currentDescription,
-									displayed: false,
-									isStateChange: isDataStateChange
-								)
+								results << createEvent(name: "trackData",value: trackDataValue.encodeAsJSON(),descriptionText: currentDescription,displayed: false,isStateChange: isDataStateChange	)
 							}
 						}
 					}
@@ -400,7 +386,7 @@ def refresh() {
 	def eventTime = new Date().time
 	if( eventTime > state.secureEventTime ?:0)
 	{
-		log.info "Refresh()"
+		log.trace "Refresh()"
         def result = subscribe()
 		result << getCurrentStatus()
 		result << getVolume()
@@ -435,7 +421,13 @@ def setLocalLevel(val, delay=0) {
 	result << mediaRendererAction("GetVolume", "RenderingControl", state.rccurl, [InstanceID: 0, Channel: "Master"])
 	result
 }
-
+// Always sets only this level
+def setVolume(val) {
+	def v = Math.max(Math.min(Math.round(val), 100), 0)
+	def result = []
+	result << mediaRendererAction("SetVolume", "RenderingControl", state.rccurl , [InstanceID: 0, Channel: "Master", DesiredVolume: v])
+	result
+}
 
 private childLevel(previousMaster, newMaster, previousChild)
 {
@@ -526,50 +518,39 @@ def playTrackAndResume(uri, duration, volume=null) {
 	def actionsDelayTime = actionsDelay ? (actionsDelay as Integer) * 1000 :0
 	def result = []
 	duration = duration ? (duration as Integer) : 0
-    if( !(currentDoNotDisturb  == "on_playing" && currentStatus == "playing" ) && !(currentDoNotDisturb  == "off_playing" && currentStatus != "playing" ) && currentDoNotDisturb != "on"  && eventTime > state.secureEventTime ?:0){
-		result << mediaRendererAction("Stop")
-		if(actionsDelayTime > 0){
-			result << delayAction(actionsDelayTime)
-		}
-		if (level) {
-			result << setLocalLevel(level)
-			result << delayAction(actionsDelayTime + 500)
-		}
+	if( !(currentDoNotDisturb  == "on_playing" && currentStatus == "playing" ) && !(currentDoNotDisturb  == "off_playing" && currentStatus != "playing" ) && currentDoNotDisturb != "on"  && eventTime > state.secureEventTime ?:0){
 		uri = uri.replace("https:","http:")
-		result << setTrack(uri)
-		if(actionsDelayTime > 0){
-			result << delayAction(actionsDelayTime)
-		}
-		result << mediaRendererAction("Play")
-        if (duration == 1){
-			def matcher = uri =~ /[^\/]+.mp3/
-			if (matcher){
-				duration =  Math.max(Math.round(matcher[0].length()/5), 2) 
-			}
-		}
-		def delayTime = (duration * 1000) 
+		result << mediaRendererAction("Stop")
+		if(actionsDelayTime > 0){result << delayAction(actionsDelayTime)}
 		if (level) {
-			delayTime += 1000
+			result << setVolume(level)
+			if(actionsDelayTime > 0){result << delayAction(actionsDelayTime)}
 		}
+		result << setTrack(uri)
+		delayAction(2000 + actionsDelayTime)
+		result << mediaRendererAction("Play")
+        if (duration <= 4){
+			def matcher = uri =~ /[^\/]+.mp3/
+			if (matcher){duration =  Math.max(Math.round(matcher[0].length()/6),4)}
+		}
+		def delayTime = (duration * 1000) + 2000
 		delayTime = customDelay ? ((customDelay as Integer) * 1000) + delayTime : delayTime
 		state.secureEventTime = eventTime + delayTime + 10000
 		if (currentTrack ) {
 			result << delayAction(delayTime)
 			result << mediaRendererAction("Stop")
-			if(actionsDelayTime > 0){
-				result << delayAction(actionsDelayTime)
-			}
+			if(actionsDelayTime > 0){result << delayAction(actionsDelayTime)}
 			if (level) {
-				result << setLocalLevel(currentVolume)
-				result << delayAction(actionsDelayTime + 500)
+				result << setVolume(currentVolume)
+				if(actionsDelayTime > 0){result << delayAction(actionsDelayTime)}
 			}
 			result << setTrack(currentTrack)
+			delayAction(2000 + actionsDelayTime)
 			if (currentStatus == "playing") {
-				if(actionsDelayTime > 0){
-					result << delayAction(actionsDelayTime)
-				}
 				result << mediaRendererAction("Play")
-			}
+			}else{
+            	result << mediaRendererAction("Stop")
+            }
 		}
 		result = result.flatten()
 	}
@@ -595,44 +576,35 @@ def playTrackAndRestore(uri, duration, volume=null) {
 	def actionsDelayTime = actionsDelay ? (actionsDelay as Integer) * 1000 :0
 	def result = []
 	duration = duration ? (duration as Integer) : 0
-    if( !(currentDoNotDisturb  == "on_playing" && currentStatus == "playing" ) && !(currentDoNotDisturb  == "off_playing" && currentStatus != "playing" ) && currentDoNotDisturb != "on"  && eventTime > state.secureEventTime ?:0){
-		result << mediaRendererAction("Stop")
-		if(actionsDelayTime > 0){
-			result << delayAction(actionsDelayTime)
-		}
-		if (level) {
-			result << setLocalLevel(level)
-			result << delayAction(actionsDelayTime + 500)
-		}
+	if( !(currentDoNotDisturb  == "on_playing" && currentStatus == "playing" ) && !(currentDoNotDisturb  == "off_playing" && currentStatus != "playing" ) && currentDoNotDisturb != "on"  && eventTime > state.secureEventTime ?:0){
 		uri = uri.replace("https:","http:")
-		result << setTrack(uri)
-		if(actionsDelayTime > 0){
-			result << delayAction(actionsDelayTime)
-		}
-		result << mediaRendererAction("Play")
-        if (duration == 1){
-			def matcher = uri =~ /[^\/]+.mp3/
-			if (matcher){
-				duration =  Math.max(Math.round(matcher[0].length()/5), 2) 
-			}
-		}
-		def delayTime = (duration * 1000) 
+		result << mediaRendererAction("Stop")
+		if(actionsDelayTime > 0){result << delayAction(actionsDelayTime)}
 		if (level) {
-			delayTime += 1000
+			result << setVolume(level)
+			if(actionsDelayTime > 0){result << delayAction(actionsDelayTime)}
 		}
+		result << setTrack(uri)
+		delayAction(2000 + actionsDelayTime)
+		result << mediaRendererAction("Play")
+        if (duration <= 4){
+			def matcher = uri =~ /[^\/]+.mp3/
+			if (matcher){duration =  Math.max(Math.round(matcher[0].length()/6),4)}
+		}
+		def delayTime = (duration * 1000) + 2000
 		delayTime = customDelay ? ((customDelay as Integer) * 1000) + delayTime : delayTime
 		state.secureEventTime = eventTime + delayTime + 10000
 		if (currentTrack ) {
 			result << delayAction(delayTime)
 			result << mediaRendererAction("Stop")
-			if(actionsDelayTime > 0){
-				result << delayAction(actionsDelayTime)
-			}
+			if(actionsDelayTime > 0){result << delayAction(actionsDelayTime)}
 			if (level) {
-				result << setLocalLevel(currentVolume)
-				result << delayAction(actionsDelayTime + 500)
+				result << setVolume(currentVolume)
+				if(actionsDelayTime > 0){result << delayAction(actionsDelayTime)}
 			}
 			result << setTrack(currentTrack)
+			delayAction(2000 + actionsDelayTime)
+			result << mediaRendererAction("Stop")
 		}
 		result = result.flatten()
 	}
@@ -744,8 +716,9 @@ def setText(String msg) {
 def subscribe() {
 	def result = []
 	result << subscribeAction(state.avteurl)
-	result << delayAction(10000)
+	result << delayAction(5000)
 	result << subscribeAction(state.rceurl)
+	result << delayAction(5000)
 	result
 }
 def unsubscribe() {
@@ -757,13 +730,9 @@ def unsubscribe() {
 		unsubscribeAction(state.avteurl, device.getDataValue('subscriptionId1')),
 		unsubscribeAction(state.rceurl, device.getDataValue('subscriptionId1')),
 
-		
-		unsubscribeAction(state.avteurl, device.getDataValue('subscriptionId2')),
-		unsubscribeAction(state.rceurl, device.getDataValue('subscriptionId2'))
 	]
 	updateDataValue("subscriptionId", "")
 	updateDataValue("subscriptionId1", "")
-	updateDataValue("subscriptionId2", "")
 	result
 }
 
@@ -797,11 +766,20 @@ private getCallBackAddress()
 }
 
 private mediaRendererAction(String action) {
+	def result
 	if(action=="Play"){
-		mediaRendererAction(action, "AVTransport", state.avtcurl, [InstanceID:0, Speed:1])
-    }else{
-		mediaRendererAction(action, "AVTransport", state.avtcurl, [InstanceID:0])
+		result = mediaRendererAction(action, "AVTransport", state.avtcurl, [InstanceID:0, Speed:1])
     }
+	else if (action=="Mute"){
+		result = mediaRendererAction("SetMute", "RenderingControl", state.rccurl, [InstanceID: 0, Channel: "Master", DesiredMute: 1])
+	}
+	else if (action=="UnMute"){
+		result = mediaRendererAction("SetMute", "RenderingControl", state.rccurl, [InstanceID: 0, Channel: "Master", DesiredMute: 0])
+	}
+	else{
+		result = mediaRendererAction(action, "AVTransport", state.avtcurl, [InstanceID:0])
+    }
+	result
 }
 
 private mediaRendererAction(String action, Map body) {
@@ -809,7 +787,7 @@ private mediaRendererAction(String action, Map body) {
 }
 
 private mediaRendererAction(String action, String service, String path, Map body = [InstanceID:0, Speed:1]) {
-	def result = new physicalgraph.device.HubSoapAction(
+    def result = new physicalgraph.device.HubSoapAction(
 		path:    path ?: "/MediaRenderer/$service/Control",
 		urn:     "urn:schemas-upnp-org:service:$service:1",
 		action:  action,
@@ -885,24 +863,16 @@ private updateSid(sid) {
 	if (sid) {
 		def sid0 = device.getDataValue('subscriptionId')
 		def sid1 = device.getDataValue('subscriptionId1')
-		def sid2 = device.getDataValue('subscriptionId2')
 		def sidNumber = device.getDataValue('sidNumber') ?: "0"
-
 		if (sidNumber == "0") {
-			if (sid != sid1 && sid != sid2) {
+			if (sid != sid1) {
 				updateDataValue("subscriptionId", sid)
 				updateDataValue("sidNumber", "1")
 			}
 		}
-		else if (sidNumber == "1") {
-			if (sid != sid0 && sid != sid2) {
-				updateDataValue("subscriptionId1", sid)
-				updateDataValue("sidNumber", "2")
-			}
-		}
 		else {
-			if (sid != sid0 && sid != sid0) {
-				updateDataValue("subscriptionId2", sid)
+			if (sid != sid0) {
+				updateDataValue("subscriptionId1", sid)
 				updateDataValue("sidNumber", "0")
 			}
 		}
@@ -922,3 +892,4 @@ private hex(value, width=2) {
 	}
 	s
 }
+
