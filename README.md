@@ -1,5 +1,5 @@
 # DLNA-PLAYER 
-Generic DLNA Player to Smartthings v 1.5.4
+Generic DLNA Player to Smartthings v 1.5.5
 
 
 
@@ -64,6 +64,10 @@ Revision History
 * Implemented Msg only when playing and Msg only when no playing
 * Several minor fixes
 * Fix Resume in control point list (No container)
+* Fix Volume Refresh in software MediaRenderers
+* Better play event
+* Prefix P.L. in container when last song list is display in music apps 
+* Prefix Unavailable in control point manage song when last song list is display in music apps 
 
 **Version 1.5.0 
 * Improved Track resume and Container resume
