@@ -1,5 +1,5 @@
 /** 
- *  MediaRenderer Player
+ *  MediaRenderer Player v 1.5.5
  *
  *  Author: SmartThings - Ulises Mujica (Ule)
  *
@@ -160,7 +160,7 @@ def parse(description) {
 				if (node.size()) {
 					def currentVolume = node.CurrentVolume.text()
 					if (currentVolume) {
-                        sendEvent(name: "level", value: currentVolume, description: "$device.displayName Volume is $currentVolume")
+						sendEvent(name: "level", value: currentVolume, description: "$device.displayName Volume is $currentVolume")
 					}
 				}
 				// Process response to getCurrentStatus()
@@ -198,13 +198,16 @@ def parse(description) {
 
 					// Volume level
 					def currentLevel = xml1.InstanceID.Volume.find{it.'@channel' == 'Master'}.'@val'.text()
+					currentLevel = currentLevel?:xml1.InstanceID.Volume.find{it.'@Channel' == 'Master'}.'@val'.text()
+
 					if (currentLevel) {
-                        sendEvent(name: "level", value: currentLevel, description: "$device.displayName volume is $currentLevel",displayed: false)
+						sendEvent(name: "level", value: currentLevel, description: "$device.displayName volume is $currentLevel",displayed: false)
 					}
                     
 
 					// Mute status
 					def currentMute = xml1.InstanceID.Mute.find{it.'@channel' == 'Master'}.'@val'.text()
+
 					if (currentMute) {
 						def value = currentMute == "1" ? "muted" : "unmuted"
                         sendEvent(name: "mute", value: value, descriptionText: "$device.displayName is $value")
@@ -279,7 +282,7 @@ def parse(description) {
 								}
 								
 								def trackDataValue = [
-									station: uri.startsWith("http://127.0.0.1")? "Unavailable-$station":station,
+									station: uri?.startsWith("http://127.0.0.1")? "Unavailable-$station":(uri?.startsWith("dlna-playcontainer:")? "P.L. $station": station ) ,
 									name: currentName,
 									artist: currentArtist,
 									album: currentAlbum,
@@ -292,7 +295,15 @@ def parse(description) {
 									enqueuedUri: "",
 									metaData: metaData,
 								]
+
 								results << createEvent(name: "trackData",value: trackDataValue.encodeAsJSON(),descriptionText: currentDescription,displayed: false,isStateChange: isDataStateChange	)
+
+								if (uri?.startsWith("dlna-playcontainer:") && trackUri && !trackUri?.startsWith("dlna-playcontainer:") && !trackUri?.startsWith("http://127.0.0.1")){
+									trackDataValue.uri = trackUri
+									trackDataValue.station = station
+									results << createEvent(name: "trackData",value: trackDataValue.encodeAsJSON(),descriptionText: currentDescription,displayed: false,isStateChange: isDataStateChange	)
+								}
+
 							}
 						}
 					}
@@ -376,7 +387,6 @@ def poll() {
 }
 
 def refresh() {
-	log.trace "Refresh()"
 	def eventTime = new Date().time
 	if( eventTime > state.secureEventTime ?:0)
 	{
@@ -495,15 +505,11 @@ def switchDoNotDisturb(){
 	}
 }
 
-def playTextAndResume(text, volume=null)
-{
-	def sound = textToSpeech(text)
-	playTrackAndResume(sound.uri, (sound.duration as Integer) + 1, volume)
-}
 
-def playTrackAndResumeResotre(uri, duration, volume, resume) {
+def playByMode(uri, duration, volume,newTrack,mode) {
+	def playTrack = false
 	def eventTime = new Date().time
-	def currentTrack = device.currentState("trackData")?.jsonValue
+	def track = device.currentState("trackData")?.jsonValue
 	def currentVolume = device.currentState("level")?.integerValue
 	def currentStatus = device.currentValue("status")
     def currentDoNotDisturb = device.currentValue("doNotDisturb")
@@ -511,38 +517,50 @@ def playTrackAndResumeResotre(uri, duration, volume, resume) {
 	def actionsDelayTime = actionsDelay ? (actionsDelay as Integer) * 1000 :0
 	def result = []
 	duration = duration ? (duration as Integer) : 0
+	switch(mode) {
+        case 1:
+			playTrack = currentStatus == "playing" ? true : false
+            break
+		case 3:
+			track = newTrack
+			playTrack = !track?.uri?.startsWith("http://127.0.0.1") ? true : false
+            break
+	}
+    
 	if( !(currentDoNotDisturb  == "on_playing" && currentStatus == "playing" ) && !(currentDoNotDisturb  == "off_playing" && currentStatus != "playing" ) && currentDoNotDisturb != "on"  && eventTime > state.secureEventTime ?:0){
-		uri = uri.replace("https:","http:")
-		result << mediaRendererAction("Stop")
-		if(actionsDelayTime > 0){result << delayAction(actionsDelayTime)}
-		if (level) {
-			result << setVolume(level)
+		if (uri){
+			uri = uri.replace("https:","http:")
+			result << mediaRendererAction("Stop")
 			if(actionsDelayTime > 0){result << delayAction(actionsDelayTime)}
-		}
-		result << setTrack(uri)
-		delayAction(2000 + actionsDelayTime)
-		result << mediaRendererAction("Play")
-        if (duration <= 4){
-			def matcher = uri =~ /[^\/]+.mp3/
-			if (matcher){duration =  Math.max(Math.round(matcher[0].length()/6),4)}
-		}
-		def delayTime = (duration * 1000) + 2000
-		delayTime = customDelay ? ((customDelay as Integer) * 1000) + delayTime : delayTime
-		state.secureEventTime = eventTime + delayTime + 10000
-		if (currentTrack ) {
+			if (level) {
+				result << setVolume(level)
+				if(actionsDelayTime > 0){result << delayAction(actionsDelayTime)}
+			}
+			result << setTrack(uri)
+			delayAction(2000 + actionsDelayTime)
+			result << mediaRendererAction("Play")
+			if (duration <= 4){
+				def matcher = uri =~ /[^\/]+.mp3/
+				if (matcher){duration =  Math.max(Math.round(matcher[0].length()/6),4)}
+			}
+			def delayTime = (duration * 1000) + 4000
+			delayTime = customDelay ? ((customDelay as Integer) * 1000) + delayTime : delayTime
+			state.secureEventTime = eventTime + delayTime + 10000
 			result << delayAction(delayTime)
+		}
+		if (track ) {
 			result << mediaRendererAction("Stop")
 			if(actionsDelayTime > 0){result << delayAction(actionsDelayTime)}
 			if (level) {
 				result << setVolume(currentVolume)
 				if(actionsDelayTime > 0){result << delayAction(actionsDelayTime)}
 			}
-			if (!currentTrack.uri.startsWith("http://127.0.0.1")){
-				result << setTrack(currentTrack)
+			if (!track.uri.startsWith("http://127.0.0.1")){
+				result << setTrack(track)
 				delayAction(2000 + actionsDelayTime)
 			}
-			if (currentStatus == "playing" && resume) {
-				if (!currentTrack.uri.startsWith("http://127.0.0.1")){
+			if (playTrack) {
+				if (!track.uri.startsWith("http://127.0.0.1")){
 					result << mediaRendererAction("Play")
 				}else{
 					result << mediaRendererAction("Next")
@@ -558,55 +576,31 @@ def playTrackAndResumeResotre(uri, duration, volume, resume) {
 	}
 	result
 }
+
+def playTextAndResume(text, volume=null){
+	def sound = textToSpeech(text)
+	playByMode(sound.uri, Math.max((sound.duration as Integer),1), volume, null, 1)
+}
+def playTextAndRestore(text, volume=null){
+	def sound = textToSpeech(text)
+	playByMode(sound.uri, Math.max((sound.duration as Integer),1), volume, null, 2)
+}
+def playTextAndTrack(text, trackData, volume=null){
+	def sound = textToSpeech(text)
+	playByMode(sound.uri, Math.max((sound.duration as Integer),1), volume, trackData, 3)
+}
 def playTrackAndResume(uri, duration, volume=null) {
-	playTrackAndResumeResotre(uri, duration, volume, true)
+	playByMode(uri, duration, volume, null, 1)
 }
 def playTrackAndRestore(uri, duration, volume=null) {
-	playTrackAndResumeResotre(uri, duration, volume, false)
+	playByMode(uri, duration, volume, null, 2)
 }
-def playTextAndRestore(text, volume=null)
-{
-	def sound = textToSpeech(text)
-	playTrackAndRestore(sound.uri, (sound.duration as Integer) + 1, volume)
-}
-
-
-
-def playTextAndTrack(text, trackData, volume=null)
-{
-	def sound = textToSpeech(text)
-	playSoundAndTrack(sound.uri, (sound.duration as Integer) + 1, trackData, volume)
-}
-
-def playSoundAndTrack(soundUri, duration, trackData, volume=null) {
-	def level = volume as Integer
-	def result = []
-	result << mediaRendererAction("Stop")
-	if (level) {
-		result << setLocalLevel(level)
-	}
-
-	result << setTrack(soundUri)
-	result << mediaRendererAction("Play")
-
-	def delayTime = ((duration as Integer) * 1000)+3000
-	result << delayAction(delayTime)
-
-	result << setTrack(trackData)
-	result << mediaRendererAction("Play")
-
-	result = result.flatten()
-	result
+def playSoundAndTrack(uri, duration, trackData, volume=null) {
+    playByMode(uri, duration, volume, trackData, 3)
 }
 
 def playTrackAtVolume(String uri, volume) {
-
-	def result = []
-	result << mediaRendererAction("Stop")
-	result << setLocalLevel(volume as Integer)
-	result << setTrack(uri, metaData)
-	result << mediaRendererAction("Play")
-	result.flatten()
+	playByMode(uri, 0, volume, null, 3)
 }
 
 def playTrack(String uri, metaData="") {
@@ -850,4 +844,3 @@ private hex(value, width=2) {
 	}
 	s
 }
-
