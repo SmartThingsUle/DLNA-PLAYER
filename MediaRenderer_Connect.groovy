@@ -1,29 +1,40 @@
 /**
- *  MediaRenderer Service Manager
+ *  MediaRenderer Service Manager v 1.1.0
  *
- *  Author: SmartThings Adapted by Ulises Mujica (Ule)
+ *  Author: SmartThings - Ulises Mujica 
  */
+ 
 definition(
-	name: "MediaRenderer (Connect)",
+	name: "MediaRender (Connect)",
 	namespace: "mujica",
-	author: "SmartThings-Mujica",
-	description: "Allows you to control your Media Renderer from the SmartThings app. Perform basic functions like play,  stop, change track, and check artist and song name from the Things screen.",
+	author: "SmartThings - Ulises Mujica",
+	description: "Allows you to control your Media Render from the SmartThings app. Perform basic functions like play, pause, stop, change track, and check artist and song name from the Things screen.",
 	category: "SmartThings Labs",
-	iconUrl: "https://s3.amazonaws.com/smartapp-icons/Partner/sonos.png",
-	iconX2Url: "https://s3.amazonaws.com/smartapp-icons/Partner/sonos@2x.png"
+	iconUrl: "https://graph.api.smartthings.com/api/devices/icons/st.secondary.smartapps-tile?displaySize=2x",
+    iconX2Url: "https://graph.api.smartthings.com/api/devices/icons/st.secondary.smartapps-tile?displaySize=2x"
 )
 
 preferences {
-	page(name:"mediaRendererDiscovery", title:"Media Renderer Device Setup", content:"mediaRendererDiscovery", refreshTimeout:5)
+    page(name: "MainPage", title: "Search and config your Media Renderers",nextPage:"", install:true, uninstall: true){
+    	section("") {
+            href(name: "discover",title: "Discovery process",required: false,page: "mediaRendererDiscovery",description: "tap to start searching")
+        }
+        section("Options", hideable: true, hidden: true) {
+            input("refreshMRInterval", "number", title:"Enter refresh players interval (min)",defaultValue:"5", required:false)
+        }
+    }
+    page(name: "mediaRendererDiscovery", title:"Discovery Started!", nextPage:"")
 }
-//PAGES
+
+
+
 def mediaRendererDiscovery()
 {
 	if(canInstallLabs())
 	{
 		int mediaRendererRefreshCount = !state.mediaRendererRefreshCount ? 0 : state.mediaRendererRefreshCount as int
 		state.mediaRendererRefreshCount = mediaRendererRefreshCount + 1
-		def refreshInterval = 3
+		def refreshInterval = 5
 
 		def options = mediaRenderersDiscovered() ?: []
 
@@ -43,8 +54,8 @@ def mediaRendererDiscovery()
 		if(((mediaRendererRefreshCount % 1) == 0) && ((mediaRendererRefreshCount % 8) != 0)) {
 			verifyMediaRendererPlayer()
 		}
-
-		return dynamicPage(name:"mediaRendererDiscovery", title:"Discovery Started!", nextPage:"", refreshInterval:refreshInterval, install:true, uninstall: true) {
+		
+		return dynamicPage(name:"mediaRendererDiscovery", title:"Discovery Started!", nextPage:"", refreshInterval:refreshInterval) {
 			section("Please wait while we discover your MediaRenderer. Discovery can take five minutes or more, so sit back and relax! Select your device below once discovered.") {
 				input "selectedMediaRenderer", "enum", required:false, title:"Select Media Renderer (${numFound} found)", multiple:true, options:options
 			}
@@ -122,30 +133,43 @@ def uninstalled() {
 		deleteChildDevice(it.deviceNetworkId)
 	}
 }
-
 def initialize() {
 	// remove location subscription aftwards
 	unsubscribe()
 	state.subscribe = false
 
 	unschedule()
-	scheduleActions()
 
 	if (selectedMediaRenderer) {
 		addMediaRenderer()
 	}
+    scheduleActions()
+    scheduleRefresh()
 
 	scheduledActionsHandler()
+    scheduledRefreshHandler() 
 }
 
 def scheduledActionsHandler() {
 	syncDevices()
-	refreshAll()
+//	refreshAll()
 
 	// TODO - for auto reschedule
 	if (!state.threeHourSchedule) {
 		scheduleActions()
 	}
+}
+
+def scheduledRefreshHandler() {
+	refreshAll()
+}
+
+private scheduleRefresh() {
+	def minutes = settings.refreshMRInterval.toInteger()
+    def cron = "0 0/${minutes} * * * ?"
+    if (minutes > 0){
+    	schedule(cron, scheduledRefreshHandler)
+    }
 }
 
 private scheduleActions() {
@@ -154,7 +178,6 @@ private scheduleActions() {
 	def hour = Math.round(Math.floor(Math.random() * 3))
 	def cron = "$sec $min $hour/3 * * ?"
 	schedule(cron, scheduledActionsHandler)
-
 	// TODO - for auto reschedule
 	state.threeHourSchedule = true
 	state.cronSchedule = cron
@@ -206,7 +229,7 @@ def locationHandler(evt) {
 
 	if (parsedEvent?.ssdpTerm?.contains("urn:schemas-upnp-org:device:MediaRenderer:1"))
 	{ //SSDP DISCOVERY EVENTS
-		log.debug "MediaRenderer device found " + parsedEvent
+		log.debug "MediaRenderer device found" + parsedEvent
 		def mediaRenderers = getMediaRendererPlayer()
 
 		
@@ -238,6 +261,7 @@ def locationHandler(evt) {
 	}
 	else if (parsedEvent.headers && parsedEvent.body)
 	{ // MEDIARENDER RESPONSES
+		log.debug "Media Render Response"
         def headerString = new String(parsedEvent.headers.decodeBase64())
 		def bodyString = new String(parsedEvent.body.decodeBase64())
 
@@ -248,9 +272,8 @@ def locationHandler(evt) {
 		{ // description.xml response (application/xml)
 			body = new XmlSlurper().parseText(bodyString)
 
-			//if (body?.device?.modelName?.text().startsWith("Sonos") && !body?.device?.modelName?.text().toLowerCase().contains("bridge") && !body?.device?.modelName?.text().contains("Sub"))
+			// Avoid add sonos devices			
 			
-			//if (body?.device?.modelName?.text().startsWith("SA-NS"))
 			if ( !body?.device?.modelName?.text().startsWith("Sonos") && body?.device?.deviceType?.text().contains("urn:schemas-upnp-org:device:MediaRenderer:1"))
 			{
 				def avtcurl = ""
@@ -275,6 +298,7 @@ def locationHandler(evt) {
 				if (player)
 				{
 					player.value << [name:body?.device?.friendlyName?.text(),model:body?.device?.modelName?.text(), serialNumber:body?.device?.UDN?.text(), verified: true,avtcurl:avtcurl,avteurl:avteurl,rccurl:rccurl,rceurl:rceurl]
+					log.debug "player $player"
 				}
 				
 			}
