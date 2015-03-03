@@ -295,15 +295,12 @@ def parse(description) {
 									enqueuedUri: "",
 									metaData: metaData,
 								]
-
-								results << createEvent(name: "trackData",value: trackDataValue.encodeAsJSON(),descriptionText: currentDescription,displayed: false,isStateChange: isDataStateChange	)
-
 								if (uri?.startsWith("dlna-playcontainer:") && trackUri && !trackUri?.startsWith("dlna-playcontainer:") && !trackUri?.startsWith("http://127.0.0.1")){
 									trackDataValue.uri = trackUri
 									trackDataValue.station = station
 									results << createEvent(name: "trackData",value: trackDataValue.encodeAsJSON(),descriptionText: currentDescription,displayed: false,isStateChange: isDataStateChange	)
 								}
-
+								results << createEvent(name: "trackData",value: trackDataValue.encodeAsJSON(),descriptionText: currentDescription,displayed: false,isStateChange: isDataStateChange	)
 							}
 						}
 					}
