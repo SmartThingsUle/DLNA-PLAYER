@@ -267,7 +267,7 @@ def locationHandler(evt) {
 
 		def type = (headerString =~ /Content-Type:.*/) ? (headerString =~ /Content-Type:.*/)[0] : null
 		def body
-
+		log.debug bodyString.encodeAsHTML()
 		if (bodyString?.contains("xml"))
 		{ // description.xml response (application/xml)
 			body = new XmlSlurper().parseText(bodyString)
