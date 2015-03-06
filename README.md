@@ -1,5 +1,5 @@
 # DLNA-PLAYER 
-Generic DLNA Player to Smartthings v 1.5.5
+Generic DLNA Player to Smartthings v 1.5.6
 
 
 
@@ -59,7 +59,7 @@ Get back to main window and you should have the new players in your things secti
 Revision History
 ----------------
 
-**Version 1.5.4 
+**Version 1.5.6 
 * Fix TTS delay 
 * Implemented Msg only when playing and Msg only when no playing
 * Several minor fixes
