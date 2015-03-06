@@ -1,5 +1,5 @@
 /** 
- *  MediaRenderer Player v 1.5.5
+ *  MediaRenderer Player v 1.5.6
  *
  *  Author: SmartThings - Ulises Mujica (Ule)
  *
@@ -23,7 +23,6 @@ metadata {
 		attribute "trackUri", "string"
 		attribute "transportUri", "string"
 		attribute "trackNumber", "string"
-		attribute "model", "string"
 		attribute "doNotDisturb", "string"
 		
 
@@ -277,29 +276,26 @@ def parse(description) {
 								def previousState = device.currentState("trackData")?.jsonValue
 								def isDataStateChange = !previousState || (previousState.station != station || previousState.metaData != metaData)
 
-								if (transportUri?.startsWith("x-rincon-queue:")) {
-									updateDataValue("queueUri", transportUri)
-								}
-								
-								def trackDataValue = [
-									station: uri?.startsWith("http://127.0.0.1")? "Unavailable-$station":(uri?.startsWith("dlna-playcontainer:")? "P.L. $station": station ) ,
-									name: currentName,
-									artist: currentArtist,
-									album: currentAlbum,
-									trackNumber: trackNumber,
-									status: currentStatus,
-									level: currentLevel,
-									uri: uri,
-									trackUri: trackUri,
-									transportUri: transportUri,
-									enqueuedUri: "",
-									metaData: metaData,
+                        					def trackDataValue = [
+								station:  station ,
+								name: currentName,
+								artist: currentArtist,
+								album: currentAlbum,
+								trackNumber: trackNumber,
+								status: currentStatus,
+								level: currentLevel,
+								uri: trackUri,
+								trackUri: trackUri,
+								transportUri: transportUri,
+								enqueuedUri: "",
+								metaData: metaData,
 								]
+
 								if (uri?.startsWith("dlna-playcontainer:") && trackUri && !trackUri?.startsWith("dlna-playcontainer:") && !trackUri?.startsWith("http://127.0.0.1")){
-									trackDataValue.uri = trackUri
-									trackDataValue.station = station
 									results << createEvent(name: "trackData",value: trackDataValue.encodeAsJSON(),descriptionText: currentDescription,displayed: false,isStateChange: isDataStateChange	)
 								}
+                                				trackDataValue.uri = uri
+                                				trackDataValue.station = uri?.startsWith("http://127.0.0.1")? "Unavailable-$station":(uri?.startsWith("dlna-playcontainer:")? "P.L. $station": station )
 								results << createEvent(name: "trackData",value: trackDataValue.encodeAsJSON(),descriptionText: currentDescription,displayed: false,isStateChange: isDataStateChange	)
 							}
 						}
