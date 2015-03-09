@@ -1,5 +1,5 @@
 /** 
- *  MediaRenderer Player v 1.5.6
+ *  MediaRenderer Player v 1.5.7
  *
  *  Author: SmartThings - Ulises Mujica (Ule)
  *
@@ -505,7 +505,7 @@ def playByMode(uri, duration, volume,newTrack,mode) {
 	def track = device.currentState("trackData")?.jsonValue
 	def currentVolume = device.currentState("level")?.integerValue
 	def currentStatus = device.currentValue("status")
-    def currentDoNotDisturb = device.currentValue("doNotDisturb")
+   	def currentDoNotDisturb = device.currentValue("doNotDisturb")
 	def level = volume as Integer
 	def actionsDelayTime = actionsDelay ? (actionsDelay as Integer) * 1000 :0
 	def result = []
@@ -519,18 +519,19 @@ def playByMode(uri, duration, volume,newTrack,mode) {
 			playTrack = !track?.uri?.startsWith("http://127.0.0.1") ? true : false
             break
 	}
-    
 	if( !(currentDoNotDisturb  == "on_playing" && currentStatus == "playing" ) && !(currentDoNotDisturb  == "off_playing" && currentStatus != "playing" ) && currentDoNotDisturb != "on"  && eventTime > state.secureEventTime ?:0){
 		if (uri){
 			uri = uri.replace("https:","http:")
-			result << mediaRendererAction("Stop")
-			if(actionsDelayTime > 0){result << delayAction(actionsDelayTime)}
+            uri = uri +  ( uri.contains("?") ? "&":"?") + "ts=$eventTime"
 			if (level) {
-				result << setVolume(level)
-				if(actionsDelayTime > 0){result << delayAction(actionsDelayTime)}
+                result << mediaRendererAction("Stop")
+                if(actionsDelayTime > 0){result << delayAction(actionsDelayTime)}
+                result << setVolume(level)
+				result << delayAction(2000 + actionsDelayTime)
 			}
 			result << setTrack(uri)
 			delayAction(2000 + actionsDelayTime)
+
 			result << mediaRendererAction("Play")
 			if (duration <= 4){
 				def matcher = uri =~ /[^\/]+.mp3/
@@ -542,11 +543,11 @@ def playByMode(uri, duration, volume,newTrack,mode) {
 			result << delayAction(delayTime)
 		}
 		if (track ) {
-			result << mediaRendererAction("Stop")
-			if(actionsDelayTime > 0){result << delayAction(actionsDelayTime)}
 			if (level) {
-				result << setVolume(currentVolume)
-				if(actionsDelayTime > 0){result << delayAction(actionsDelayTime)}
+                result << mediaRendererAction("Stop")
+                if(actionsDelayTime > 0){result << delayAction(actionsDelayTime)}
+                result << setVolume(currentVolume)
+				result << delayAction(2000 + actionsDelayTime)
 			}
 			if (!track.uri.startsWith("http://127.0.0.1")){
 				result << setTrack(track)
