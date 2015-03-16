@@ -530,7 +530,7 @@ def playByMode(uri, duration, volume,newTrack,mode) {
 				result << delayAction(2000 + actionsDelayTime)
 			}
 			result << setTrack(uri)
-			delayAction(2000 + actionsDelayTime)
+			result << delayAction(2000 + actionsDelayTime)
 
 			result << mediaRendererAction("Play")
 			if (duration <= 4){
