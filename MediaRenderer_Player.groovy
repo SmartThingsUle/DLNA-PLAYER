@@ -1,5 +1,5 @@
 /** 
- *  MediaRenderer Player v 1.5.7
+ *  MediaRenderer Player v 1.5.8
  *
  *  Author: SmartThings - Ulises Mujica (Ule)
  *
