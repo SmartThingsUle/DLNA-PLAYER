@@ -58,6 +58,8 @@ Get back to main window and you should have the new players in your things secti
 
 Revision History
 ----------------
+**Version 1.6.0
+* Speech Synthesis Capability added
 
 **Version 1.5.6 
 * Fix TTS delay 
