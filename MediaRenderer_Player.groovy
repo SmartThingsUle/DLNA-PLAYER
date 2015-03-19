@@ -1,5 +1,5 @@
 /** 
- *  MediaRenderer Player v 1.5.8
+ *  MediaRenderer Player v 1.6.0
  *
  *  Author: SmartThings - Ulises Mujica (Ule)
  *
@@ -18,6 +18,7 @@ metadata {
 		capability "Sensor"
 		capability "Music Player"
 		capability "Polling"
+		capability "Speech Synthesis"
 
 		attribute "model", "string"
 		attribute "trackUri", "string"
@@ -44,6 +45,7 @@ metadata {
 		command "playTextAndResume", ["string","json_object","number"]
 		command "setDoNotDisturb", ["string"]
 		command "switchDoNotDisturb"
+		command "speak", ["string"]
 	}
 
 	// Main
@@ -305,7 +307,7 @@ def parse(description) {
 					def bodyHtml = msg.body ? msg.body.replaceAll('(<[a-z,A-Z,0-9,\\-,_,:]+>)','\n$1\n')
 						.replaceAll('(</[a-z,A-Z,0-9,\\-,_,:]+>)','\n$1\n')
 						.replaceAll('\n\n','\n').encodeAsHTML() : ""
-					results << createEvent(
+						results << createEvent(
 						name: "mediaRendererMessage",
 						value: "${msg.body.encodeAsMD5()}",
 						description: description,
@@ -318,7 +320,7 @@ def parse(description) {
 				def bodyHtml = msg.body ? msg.body.replaceAll('(<[a-z,A-Z,0-9,\\-,_,:]+>)','\n$1\n')
 					.replaceAll('(</[a-z,A-Z,0-9,\\-,_,:]+>)','\n$1\n')
 					.replaceAll('\n\n','\n').encodeAsHTML() : ""
-				results << createEvent(
+					results << createEvent(
 					name: "unknownMessage",
 					value: "${msg.body.encodeAsMD5()}",
 					description: description,
@@ -657,6 +659,9 @@ def setText(String msg) {
 		setTrack(sound.uri)
 }
 
+def speak(String msg){
+	playTextAndResume(msg, null)
+}
 // Custom commands
 
 def subscribe() {
