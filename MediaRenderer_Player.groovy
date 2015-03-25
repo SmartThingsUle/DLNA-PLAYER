@@ -1,5 +1,5 @@
 /** 
- *  MediaRenderer Player v 1.6.0
+ *  MediaRenderer Player v 1.6.1
  *
  *  Author: SmartThings - Ulises Mujica (Ule)
  *
@@ -558,8 +558,6 @@ def playByMode(uri, duration, volume,newTrack,mode) {
 			if (playTrack) {
 				if (!track.uri.startsWith("http://127.0.0.1")){
 					result << mediaRendererAction("Play")
-				}else{
-					result << mediaRendererAction("Next")
 				}
 			}else{
 				result << mediaRendererAction("Stop")
