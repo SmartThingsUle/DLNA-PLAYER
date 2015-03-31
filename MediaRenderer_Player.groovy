@@ -1,13 +1,15 @@
 /** 
- *  MediaRenderer Player v 1.6.1
+ *  MediaRenderer Player v1.7
  *
  *  Author: SmartThings - Ulises Mujica (Ule)
  *
  */
 
+
 preferences {
-		input(name: "customDelay", type: "enum", title: "Delay before msg (seconds)", options: ["0","1","2","3","4","5","6","7","8","9","10"])
+		input(name: "customDelay", type: "enum", title: "Delay before msg (seconds)", options: ["0","1","2","3","4","5"])
 		input(name: "actionsDelay", type: "enum", title: "Delay between actions (seconds)", options: ["0","1","2","3"])
+        input(name: "colorPlayer", type: "enum", title: "Player Color", options: ["Default","Blue"])
 }
 metadata {
 	// Automatically generated. Make future change here.
@@ -18,7 +20,7 @@ metadata {
 		capability "Sensor"
 		capability "Music Player"
 		capability "Polling"
-		capability "Speech Synthesis"
+        capability "Speech Synthesis"
 
 		attribute "model", "string"
 		attribute "trackUri", "string"
@@ -45,7 +47,7 @@ metadata {
 		command "playTextAndResume", ["string","json_object","number"]
 		command "setDoNotDisturb", ["string"]
 		command "switchDoNotDisturb"
-		command "speak", ["string"]
+        command "speak", ["string"]
 	}
 
 	// Main
@@ -160,7 +162,7 @@ def parse(description) {
 				node = msg.xml.Body.GetVolumeResponse
 				if (node.size()) {
 					def currentVolume = node.CurrentVolume.text()
-					if (currentVolume) {
+                    if (currentVolume) {
 						sendEvent(name: "level", value: currentVolume, description: "$device.displayName Volume is $currentVolume")
 					}
 				}
@@ -202,7 +204,7 @@ def parse(description) {
 					currentLevel = currentLevel?:xml1.InstanceID.Volume.find{it.'@Channel' == 'Master'}.'@val'.text()
 
 					if (currentLevel) {
-						sendEvent(name: "level", value: currentLevel, description: "$device.displayName volume is $currentLevel",displayed: false)
+						sendEvent(name: "level", value: currentLevel, description: "$device.displayName volume is $currentLevel")
 					}
                     
 
@@ -234,7 +236,8 @@ def parse(description) {
 
 						if (trackMeta || transportMeta) {
 							def metaDataLoad = trackMeta  ? trackMeta : transportMeta
-							def metaData = metaDataLoad?.startsWith("<item") ?  "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\">$metaDataLoad</DIDL-Lite>": metaDataLoad 
+                            def metaData = metaDataLoad?.startsWith("<item") ?  "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\">$metaDataLoad</DIDL-Lite>": metaDataLoad 
+							metaData = metaData.contains("dlna:dlna") &&  !metaData.contains("xmlns:dlna") ? metaData.replace("<DIDL-Lite"," <DIDL-Lite xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\"") : metaData
 							def stationMetaXml = metaData ? parseXml(metaData) : null
 							
 							
@@ -273,31 +276,33 @@ def parse(description) {
 								// Use track description for the data event description unless it is a queued song (to support resumption & use in mood music)
 								def station =  currentName
 
-
 								def uri = transportUri ?  transportUri : trackUri
 								def previousState = device.currentState("trackData")?.jsonValue
 								def isDataStateChange = !previousState || (previousState.station != station || previousState.metaData != metaData)
 
-                        					def trackDataValue = [
-								station:  station ,
-								name: currentName,
-								artist: currentArtist,
-								album: currentAlbum,
-								trackNumber: trackNumber,
-								status: currentStatus,
-								level: currentLevel,
-								uri: trackUri,
-								trackUri: trackUri,
-								transportUri: transportUri,
-								enqueuedUri: "",
-								metaData: metaData,
+			
+								
+								
+                                def trackDataValue = [
+									station:  station ,
+									name: currentName,
+									artist: currentArtist,
+									album: currentAlbum,
+									trackNumber: trackNumber,
+									status: currentStatus,
+									level: currentLevel,
+									uri: trackUri,
+									trackUri: trackUri,
+									transportUri: transportUri,
+									enqueuedUri: "",
+									metaData: metaData,
 								]
 
 								if (uri?.startsWith("dlna-playcontainer:") && trackUri && !trackUri?.startsWith("dlna-playcontainer:") && !trackUri?.startsWith("http://127.0.0.1")){
 									results << createEvent(name: "trackData",value: trackDataValue.encodeAsJSON(),descriptionText: currentDescription,displayed: false,isStateChange: isDataStateChange	)
 								}
-                                				trackDataValue.uri = uri
-                                				trackDataValue.station = uri?.startsWith("http://127.0.0.1")? "Unavailable-$station":(uri?.startsWith("dlna-playcontainer:")? "P.L. $station": station )
+                                trackDataValue.uri = uri
+                                trackDataValue.station = uri?.startsWith("http://127.0.0.1")? "Unavailable-$station":(uri?.startsWith("dlna-playcontainer:")? "P.L. $station": station )
 								results << createEvent(name: "trackData",value: trackDataValue.encodeAsJSON(),descriptionText: currentDescription,displayed: false,isStateChange: isDataStateChange	)
 							}
 						}
@@ -307,7 +312,7 @@ def parse(description) {
 					def bodyHtml = msg.body ? msg.body.replaceAll('(<[a-z,A-Z,0-9,\\-,_,:]+>)','\n$1\n')
 						.replaceAll('(</[a-z,A-Z,0-9,\\-,_,:]+>)','\n$1\n')
 						.replaceAll('\n\n','\n').encodeAsHTML() : ""
-						results << createEvent(
+					results << createEvent(
 						name: "mediaRendererMessage",
 						value: "${msg.body.encodeAsMD5()}",
 						description: description,
@@ -320,7 +325,7 @@ def parse(description) {
 				def bodyHtml = msg.body ? msg.body.replaceAll('(<[a-z,A-Z,0-9,\\-,_,:]+>)','\n$1\n')
 					.replaceAll('(</[a-z,A-Z,0-9,\\-,_,:]+>)','\n$1\n')
 					.replaceAll('\n\n','\n').encodeAsHTML() : ""
-					results << createEvent(
+				results << createEvent(
 					name: "unknownMessage",
 					value: "${msg.body.encodeAsMD5()}",
 					description: description,
@@ -352,29 +357,16 @@ def off(){
 	stop()
 }
 
-
-
-def setModel(String model)
+def setCustomData(Map customData)
 {
 	sendEvent(name:"model",value:model,isStateChange:true)
+	state.avtcurl = customData.avtcurl
+	state.avteurl = customData.avteurl
+	state.rccurl = customData.rccurl
+	state.rceurl = customData.rceurl
+	state.udn = customData.udn
 }
 
-def setAVTCURL(String avtcurl)
-{
-	state.avtcurl = avtcurl
-}
-def setAVTEURL(String avteurl)
-{
-	state.avteurl = avteurl
-}
-def setRCCURL(String rccurl)
-{
-	state.rccurl = rccurl
-}
-def setRCEURL(String rceurl)
-{
-	state.rceurl = rceurl
-}
 
 
 def poll() {
@@ -382,7 +374,8 @@ def poll() {
 }
 
 def refresh() {
-	def eventTime = new Date().time
+	log.trace "refresh()"
+    def eventTime = new Date().time
 	if( eventTime > state.secureEventTime ?:0)
 	{
         def result = subscribe()
@@ -421,10 +414,7 @@ def setLocalLevel(val, delay=0) {
 }
 // Always sets only this level
 def setVolume(val) {
-	def v = Math.max(Math.min(Math.round(val), 100), 0)
-	def result = []
-	result << mediaRendererAction("SetVolume", "RenderingControl", state.rccurl , [InstanceID: 0, Channel: "Master", DesiredVolume: v])
-	result
+	mediaRendererAction("SetVolume", "RenderingControl", state.rccurl , [InstanceID: 0, Channel: "Master", DesiredVolume: Math.max(Math.min(Math.round(val), 100), 0)])
 }
 
 private childLevel(previousMaster, newMaster, previousChild)
@@ -507,7 +497,7 @@ def playByMode(uri, duration, volume,newTrack,mode) {
 	def track = device.currentState("trackData")?.jsonValue
 	def currentVolume = device.currentState("level")?.integerValue
 	def currentStatus = device.currentValue("status")
-   	def currentDoNotDisturb = device.currentValue("doNotDisturb")
+    def currentDoNotDisturb = device.currentValue("doNotDisturb")
 	def level = volume as Integer
 	def actionsDelayTime = actionsDelay ? (actionsDelay as Integer) * 1000 :0
 	def result = []
@@ -532,7 +522,7 @@ def playByMode(uri, duration, volume,newTrack,mode) {
 				result << delayAction(2000 + actionsDelayTime)
 			}
 			result << setTrack(uri)
-			result << delayAction(2000 + actionsDelayTime)
+			delayAction(2000 + actionsDelayTime)
 
 			result << mediaRendererAction("Play")
 			if (duration <= 4){
@@ -558,6 +548,8 @@ def playByMode(uri, duration, volume,newTrack,mode) {
 			if (playTrack) {
 				if (!track.uri.startsWith("http://127.0.0.1")){
 					result << mediaRendererAction("Play")
+				}else{
+					//result << mediaRendererAction("Next")
 				}
 			}else{
 				result << mediaRendererAction("Stop")
@@ -584,7 +576,7 @@ def playTextAndTrack(text, trackData, volume=null){
 	playByMode(sound.uri, Math.max((sound.duration as Integer),1), volume, trackData, 3)
 }
 def playTrackAndResume(uri, duration, volume=null) {
-	playByMode(uri, duration, volume, null, 1)
+    playByMode(uri, duration, volume, null, 1)
 }
 def playTrackAndRestore(uri, duration, volume=null) {
 	playByMode(uri, duration, volume, null, 2)
@@ -653,13 +645,14 @@ def playText(String msg) {
 }
 
 def setText(String msg) {
-		def sound = textToSpeech(msg)
-		setTrack(sound.uri)
+	def sound = textToSpeech(msg)
+	setTrack(sound.uri)
 }
 
 def speak(String msg){
 	playTextAndResume(msg, null)
 }
+
 // Custom commands
 
 def subscribe() {
@@ -749,7 +742,6 @@ private mediaRendererAction(String action, String service, String path, Map body
 private subscribeAction(path, callbackPath="") {
 	def address = getCallBackAddress()
 	def ip = getHostAddress()
-
 	def result = new physicalgraph.device.HubAction(
 		method: "SUBSCRIBE",
 		path: path,
@@ -757,7 +749,7 @@ private subscribeAction(path, callbackPath="") {
 			HOST: ip,
 			CALLBACK: "<http://${address}/notify$callbackPath>",
 			NT: "upnp:event",
-			TIMEOUT: "Second-28800"])
+			TIMEOUT: "Second-2800"])
 	result
 }
 
@@ -840,4 +832,11 @@ private hex(value, width=2) {
 		s = "0" + s
 	}
 	s
+}
+private longTrace(text="", id=""){
+	if (text.length() > 0){
+		for (int start = 0; start < text.length(); start += 1000) {
+			log.trace  "$start $id _ ${text.substring(Math.max(text.length() - (start + 1000 ), 0), text.length() - start )}"
+		}
+	}
 }
