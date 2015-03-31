@@ -1,5 +1,5 @@
 /**
- *  MediaRenderer Service Manager v 1.1.0
+ *  MediaRenderer Service Manager v 1.5
  *
  *  Author: SmartThings - Ulises Mujica 
  */
@@ -25,8 +25,6 @@ preferences {
     }
     page(name: "mediaRendererDiscovery", title:"Discovery Started!", nextPage:"")
 }
-
-
 
 def mediaRendererDiscovery()
 {
@@ -65,7 +63,7 @@ def mediaRendererDiscovery()
 	{
 		def upgradeNeeded = """To use SmartThings Labs, your Hub should be completely up to date.
 
-To update your Hub, access Location Settings in the Main Menu (tap the gear next to your location name), select your Hub, and choose "Update Hub"."""
+		To update your Hub, access Location Settings in the Main Menu (tap the gear next to your location name), select your Hub, and choose "Update Hub"."""
 
 		return dynamicPage(name:"mediaRendererDiscovery", title:"Upgrade needed!", nextPage:"", install:false, uninstall: true) {
 			section("Upgrade") {
@@ -133,6 +131,7 @@ def uninstalled() {
 		deleteChildDevice(it.deviceNetworkId)
 	}
 }
+
 def initialize() {
 	// remove location subscription aftwards
 	unsubscribe()
@@ -144,48 +143,29 @@ def initialize() {
 		addMediaRenderer()
 	}
     scheduleActions()
-    scheduleRefresh()
-
 	scheduledActionsHandler()
-    scheduledRefreshHandler() 
-}
-
-def scheduledActionsHandler() {
-	syncDevices()
-//	refreshAll()
-
-	// TODO - for auto reschedule
-	if (!state.threeHourSchedule) {
-		scheduleActions()
-	}
 }
 
 def scheduledRefreshHandler() {
 	refreshAll()
 }
 
-private scheduleRefresh() {
-	def minutes = settings.refreshMRInterval.toInteger()
-    def cron = "0 0/${minutes} * * * ?"
-    if (minutes > 0){
-    	schedule(cron, scheduledRefreshHandler)
-    }
+def scheduledActionsHandler() {
+    syncDevices()
+	runIn(120, scheduledRefreshHandler) 
+
 }
 
 private scheduleActions() {
-	def sec = Math.round(Math.floor(Math.random() * 60))
-	def min = Math.round(Math.floor(Math.random() * 60))
-	def hour = Math.round(Math.floor(Math.random() * 3))
-	def cron = "$sec $min $hour/3 * * ?"
-	schedule(cron, scheduledActionsHandler)
-	// TODO - for auto reschedule
-	state.threeHourSchedule = true
-	state.cronSchedule = cron
+	def minutes = Math.max(settings.refreshMRInterval.toInteger(),3)
+    def cron = "0 0/${minutes} * * * ?"
+   	schedule(cron, scheduledActionsHandler)
 }
 
-private syncDevices() {
-	//runIn(300, "doDeviceSync" , [overwrite: false]) //schedule to run again in 5 minutes
 
+
+private syncDevices() {
+	log.debug "syncDevices()"
 	if(!state.subscribe) {
 		subscribe(location, null, locationHandler, [filterEvents:false])
 		state.subscribe = true
@@ -205,13 +185,10 @@ def addMediaRenderer() {
 		def d = getChildDevice(dni)
 		if(!d) {
 			def newPlayer = players.find { (it.value.ip + ":" + it.value.port) == dni }
-			d = addChildDevice("mujica", "DLNA Player", dni, newPlayer?.value.hub, [label:"${newPlayer?.value.name} Speaker"])
+			//d = addChildDevice("mujica", "MediaRenderer", dni, newPlayer?.value.hub, [label:"${newPlayer?.value.name} Speaker"])
+            d = addChildDevice("mujica", "DLNA Player", dni, newPlayer?.value.hub, [label:"${newPlayer?.value.name} Speaker"])
 
-			d.setModel(newPlayer?.value.model)
-			d.setAVTCURL(newPlayer?.value.avtcurl)
-			d.setAVTEURL(newPlayer?.value.avteurl)
-			d.setRCCURL(newPlayer?.value.rccurl)
-			d.setRCEURL(newPlayer?.value.rceurl)
+			d.setCustomData([model:newPlayer?.value.model,avtcurl:newPlayer?.value.avtcurl,avteurl:newPlayer?.value.avteurl,rccurl:newPlayer?.value.rccurl,rceurl:newPlayer?.value.rceurl,udn:newPlayer?.value.udn])
 			
 			runSubscribe = true
 		} 
@@ -221,10 +198,8 @@ def addMediaRenderer() {
 def locationHandler(evt) {
 	def description = evt.description
 	def hub = evt?.hubId
-	
 	def parsedEvent = parseEventMessage(description)
     def msg = parseLanMessage(description)
-
 	parsedEvent << ["hub":hub]
 
 	if (parsedEvent?.ssdpTerm?.contains("urn:schemas-upnp-org:device:MediaRenderer:1"))
@@ -242,17 +217,15 @@ def locationHandler(evt) {
 
 			def d = mediaRenderers."${parsedEvent.ssdpUSN.toString()}"
 			boolean deviceChangedValues = false
-
 			if(d.ip != parsedEvent.ip || d.port != parsedEvent.port) {
 				d.ip = parsedEvent.ip
 				d.port = parsedEvent.port
 				deviceChangedValues = true
 			}
-
 			if (deviceChangedValues) {
-				def children = getChildDevices()
+                def children = getChildDevices()
 				children.each {
-					if (it.getDeviceDataByName("mac") == parsedEvent.mac) {
+                    if (parsedEvent.ssdpUSN.toString().contains(it.state.udn)) {
 						it.setDeviceNetworkId((parsedEvent.ip + ":" + parsedEvent.port)) //could error if device with same dni already exists
 					}
 				}
@@ -261,26 +234,27 @@ def locationHandler(evt) {
 	}
 	else if (parsedEvent.headers && parsedEvent.body)
 	{ // MEDIARENDER RESPONSES
-		log.debug "Media Render Response"
         def headerString = new String(parsedEvent.headers.decodeBase64())
 		def bodyString = new String(parsedEvent.body.decodeBase64())
 
 		def type = (headerString =~ /Content-Type:.*/) ? (headerString =~ /Content-Type:.*/)[0] : null
 		def body
-		log.debug bodyString.encodeAsHTML()
 		if (bodyString?.contains("xml"))
 		{ // description.xml response (application/xml)
 			body = new XmlSlurper().parseText(bodyString)
 
-			// Avoid add sonos devices			
-			
+			// Avoid add sonos devices	
+            
 			if ( !body?.device?.modelName?.text().startsWith("Sonos") && body?.device?.deviceType?.text().contains("urn:schemas-upnp-org:device:MediaRenderer:1"))
 			{
 				def avtcurl = ""
 				def avteurl = ""
 				def rccurl = ""
 				def rceurl = ""
+
 				
+                
+                
 				body?.device?.serviceList?.service?.each{
 				  if (it?.serviceType?.text().contains("AVTransport")) {
 						avtcurl = it?.controlURL.text()
@@ -297,8 +271,7 @@ def locationHandler(evt) {
 				def player = mediaRenderers.find {it?.key?.contains(body?.device?.UDN?.text())}
 				if (player)
 				{
-					player.value << [name:body?.device?.friendlyName?.text(),model:body?.device?.modelName?.text(), serialNumber:body?.device?.UDN?.text(), verified: true,avtcurl:avtcurl,avteurl:avteurl,rccurl:rccurl,rceurl:rceurl]
-					log.debug "player $player"
+					player.value << [name:body?.device?.friendlyName?.text(),model:body?.device?.modelName?.text(), serialNumber:body?.device?.UDN?.text(), verified: true,avtcurl:avtcurl,avteurl:avteurl,rccurl:rccurl,rceurl:rceurl,udn:body?.device?.UDN?.text()]
 				}
 				
 			}
