@@ -143,7 +143,7 @@ def initialize() {
 		addMediaRenderer()
 	}
     scheduleActions()
-	scheduledActionsHandler()
+    scheduledRefreshHandler()
 }
 
 def scheduledRefreshHandler() {
@@ -152,7 +152,7 @@ def scheduledRefreshHandler() {
 
 def scheduledActionsHandler() {
     syncDevices()
-	runIn(120, scheduledRefreshHandler) 
+	runIn(61, scheduledRefreshHandler) 
 
 }
 
@@ -175,6 +175,7 @@ private syncDevices() {
 }
 
 private refreshAll(){
+	log.trace "refresh all"
 	childDevices*.refresh()
 }
 
