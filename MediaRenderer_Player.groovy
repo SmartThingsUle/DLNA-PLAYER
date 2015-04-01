@@ -373,7 +373,7 @@ def poll() {
 	refresh()
 }
 
-def refresh(delay) {
+def refresh() {
     def eventTime = new Date().time
 	if( eventTime > state.secureEventTime ?:0)
 	{
