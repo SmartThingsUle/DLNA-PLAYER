@@ -1,5 +1,5 @@
 /** 
- *  MediaRenderer Player v1.7
+ *  MediaRenderer Player v1.8
  *
  *  Author: SmartThings - Ulises Mujica (Ule)
  *
@@ -128,12 +128,12 @@ metadata {
 	])
 }
 
-// parse events into attributes
+
 def parse(description) {
     def results = []
 	try {
 		def msg = parseLanMessage(description)
-		if (msg.headers)
+        if (msg.headers)
 		{
 			def hdr = msg.header.split('\n')[0]
 			if (hdr.size() > 36) {
@@ -373,16 +373,19 @@ def poll() {
 	refresh()
 }
 
-def refresh() {
-	log.trace "refresh()"
+def refresh(delay) {
     def eventTime = new Date().time
 	if( eventTime > state.secureEventTime ?:0)
 	{
-        def result = subscribe()
+        log.trace "Refresh()"
+        def result = []
+        result << subscribe()
 		result << getCurrentStatus()
 		result << getVolume()
 		result.flatten()
-	}
+	}else{
+    	log.trace "Refresh skipped"
+    }
 }
 
 def setLevel(val)
@@ -656,11 +659,12 @@ def speak(String msg){
 // Custom commands
 
 def subscribe() {
+	log.trace "subscribe()"
 	def result = []
 	result << subscribeAction(state.avteurl)
-	result << delayAction(5000)
+	result << delayAction(2500)
 	result << subscribeAction(state.rceurl)
-	result << delayAction(5000)
+	result << delayAction(2500)
 	result
 }
 def unsubscribe() {
@@ -749,7 +753,7 @@ private subscribeAction(path, callbackPath="") {
 			HOST: ip,
 			CALLBACK: "<http://${address}/notify$callbackPath>",
 			NT: "upnp:event",
-			TIMEOUT: "Second-2800"])
+			TIMEOUT: "Second-600"])
 	result
 }
 
@@ -832,11 +836,4 @@ private hex(value, width=2) {
 		s = "0" + s
 	}
 	s
-}
-private longTrace(text="", id=""){
-	if (text.length() > 0){
-		for (int start = 0; start < text.length(); start += 1000) {
-			log.trace  "$start $id _ ${text.substring(Math.max(text.length() - (start + 1000 ), 0), text.length() - start )}"
-		}
-	}
 }
