@@ -1,5 +1,5 @@
 /** 
- *  MediaRenderer Player v1.8
+ *  MediaRenderer Player v1.9.0
  *
  *  Author: SmartThings - Ulises Mujica (Ule)
  *
@@ -9,7 +9,6 @@
 preferences {
 		input(name: "customDelay", type: "enum", title: "Delay before msg (seconds)", options: ["0","1","2","3","4","5"])
 		input(name: "actionsDelay", type: "enum", title: "Delay between actions (seconds)", options: ["0","1","2","3"])
-        input(name: "colorPlayer", type: "enum", title: "Player Color", options: ["Default","Blue"])
 }
 metadata {
 	// Automatically generated. Make future change here.
@@ -56,6 +55,7 @@ metadata {
 		state "stopped", label:'Stopped', action:"music Player.play", icon:"st.Electronics.electronics16", backgroundColor:"#ffffff"
 		state "paused", label:'Paused', action:"music Player.play", icon:"st.Electronics.electronics16", nextState:"playing", backgroundColor:"#ffffff"
 		state "no_media_present", label:'No Media', icon:"st.Electronics.electronics16", backgroundColor:"#ffffff"
+        state "no_device_present", label:'No Present', icon:"st.Electronics.electronics16", backgroundColor:"#b6b6b4"
 		state "grouped", label:'Grouped', icon:"st.Electronics.electronics16", backgroundColor:"#ffffff"
 	}
 
@@ -76,6 +76,7 @@ metadata {
 		state "playing", label:'Playing', action:"music Player.stop", icon:"st.Electronics.electronics16", nextState:"paused", backgroundColor:"#ffffff"
 		state "stopped", label:'Stopped', action:"music Player.play", icon:"st.Electronics.electronics16", nextState:"playing", backgroundColor:"#ffffff"
 		state "no_media_present", label:'No Media', icon:"st.Electronics.electronics16", backgroundColor:"#ffffff"
+		state "no_device_present", label:'No Present', icon:"st.Electronics.electronics16", backgroundColor:"#ffffff"
 		state "paused", label:'Paused', action:"music Player.play", icon:"st.Electronics.electronics16", nextState:"playing", backgroundColor:"#ffffff"
 	}
 	standardTile("stop", "device.status", width: 1, height: 1, decoration: "flat") {
@@ -171,6 +172,7 @@ def parse(description) {
 				if (node.size()) {
 					def currentStatus = statusText(node.CurrentTransportState.text())
 					if (currentStatus) {
+						state.lastStatusTime = new Date().time
 						if (currentStatus != "TRANSITIONING") {
 							sendEvent(name: "status", value: currentStatus, data: [source: 'xml.Body.GetTransportInfoResponse'])
 							sendEvent(name: "switch", value: currentStatus=="playing" ? "on" : "off", displayed: false)
@@ -191,6 +193,7 @@ def parse(description) {
 					// Play/pause status
 					def currentStatus = statusText(xml1.InstanceID.TransportState.'@val'.text())
                     if (currentStatus) {
+						state.lastStatusTime = new Date().time
 						if (currentStatus != "TRANSITIONING") {
 							updateDataValue('currentStatus', currentStatus)
 							sendEvent(name: "status", value: currentStatus, data: currentStatus, displayed: false)
@@ -280,9 +283,6 @@ def parse(description) {
 								def previousState = device.currentState("trackData")?.jsonValue
 								def isDataStateChange = !previousState || (previousState.station != station || previousState.metaData != metaData)
 
-			
-								
-								
                                 def trackDataValue = [
 									station:  station ,
 									name: currentName,
@@ -344,6 +344,7 @@ def parse(description) {
 }
 
 def installed() {
+	sendEvent(name:"model",value:getDataValue("model"),isStateChange:true)
 	def result = [delayAction(5000)]
 	result << refresh()
 	result.flatten()
@@ -357,27 +358,21 @@ def off(){
 	stop()
 }
 
-def setCustomData(Map customData)
-{
-	sendEvent(name:"model",value:model,isStateChange:true)
-	state.avtcurl = customData.avtcurl
-	state.avteurl = customData.avteurl
-	state.rccurl = customData.rccurl
-	state.rceurl = customData.rceurl
-	state.udn = customData.udn
-}
-
-
-
 def poll() {
 	refresh()
 }
 
 def refresh() {
-    def eventTime = new Date().time
+	
+	def eventTime = new Date().time
+	
 	if( eventTime > state.secureEventTime ?:0)
 	{
-        log.trace "Refresh()"
+		if ((state.lastRefreshTime ?: 0) > (state.lastStatusTime ?:0)){
+				sendEvent(name: "status", value: "no_device_present", data: "no_device_present", displayed: false)
+		}
+		state.lastRefreshTime = eventTime
+		log.trace "Refresh()"
         def result = []
         result << subscribe()
 		result << getCurrentStatus()
@@ -410,14 +405,14 @@ def setLocalLevel(val, delay=0) {
 	if (delay) {
 		result << delayAction(delay)
 	}
-	result << mediaRendererAction("SetVolume", "RenderingControl", state.rccurl , [InstanceID: 0, Channel: "Master", DesiredVolume: v])
+	result << mediaRendererAction("SetVolume", "RenderingControl", getDataValue("rccurl") , [InstanceID: 0, Channel: "Master", DesiredVolume: v])
 	//result << delayAction(50)
-	result << mediaRendererAction("GetVolume", "RenderingControl", state.rccurl, [InstanceID: 0, Channel: "Master"])
+	result << mediaRendererAction("GetVolume", "RenderingControl", getDataValue("rccurl"), [InstanceID: 0, Channel: "Master"])
 	result
 }
 // Always sets only this level
 def setVolume(val) {
-	mediaRendererAction("SetVolume", "RenderingControl", state.rccurl , [InstanceID: 0, Channel: "Master", DesiredVolume: Math.max(Math.min(Math.round(val), 100), 0)])
+	mediaRendererAction("SetVolume", "RenderingControl", getDataValue("rccurl") , [InstanceID: 0, Channel: "Master", DesiredVolume: Math.max(Math.min(Math.round(val), 100), 0)])
 }
 
 private childLevel(previousMaster, newMaster, previousChild)
@@ -458,19 +453,19 @@ def previousTrack() {
 }
 
 def seek(trackNumber) {
-	mediaRendererAction("Seek", "AVTransport", state.avtcurl , [InstanceID: 0, Unit: "TRACK_NR", Target: trackNumber])
+	mediaRendererAction("Seek", "AVTransport", getDataValue("avtcurl") , [InstanceID: 0, Unit: "TRACK_NR", Target: trackNumber])
 }
 
 def mute()
 {
 	// TODO - handle like volume?
-	mediaRendererAction("SetMute", "RenderingControl", state.rccurl, [InstanceID: 0, Channel: "Master", DesiredMute: 1])
+	mediaRendererAction("SetMute", "RenderingControl", getDataValue("rccurl"), [InstanceID: 0, Channel: "Master", DesiredMute: 1])
 }
 
 def unmute()
 {
 	// TODO - handle like volume?
-	mediaRendererAction("SetMute", "RenderingControl", state.rccurl, [InstanceID: 0, Channel: "Master", DesiredMute: 0])
+	mediaRendererAction("SetMute", "RenderingControl", getDataValue("rccurl"), [InstanceID: 0, Channel: "Master", DesiredMute: 0])
 }
 
 def setPlayMode(mode)
@@ -528,13 +523,13 @@ def playByMode(uri, duration, volume,newTrack,mode) {
 			delayAction(2000 + actionsDelayTime)
 
 			result << mediaRendererAction("Play")
-			if (duration <= 4){
+			if (duration < 3){
 				def matcher = uri =~ /[^\/]+.mp3/
-				if (matcher){duration =  Math.max(Math.round(matcher[0].length()/6),4)}
+				if (matcher){duration =  Math.max(Math.round(matcher[0].length()/8),3)}
 			}
-			def delayTime = (duration * 1000) + 4000
+			def delayTime = (duration * 1000) + 2000
 			delayTime = customDelay ? ((customDelay as Integer) * 1000) + delayTime : delayTime
-			state.secureEventTime = eventTime + delayTime + 10000
+			state.secureEventTime = eventTime + delayTime + 7000
 			result << delayAction(delayTime)
 		}
 		if (track ) {
@@ -605,18 +600,13 @@ def playTrack(Map trackData) {
 }
 
 def setTrack(Map trackData) {
-		def data = trackData
-		def result = []
-		result = setTrack(data.uri, data.metaData)
-		result.flatten()
+	setTrack(trackData.uri, trackData?.metaData)
 }
 
 def setTrack(String uri, metaData="")
 {
 	metaData = metaData?:"<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\"><item id=\"1\" parentID=\"1\" restricted=\"1\"><upnp:class>object.item.audioItem.musicTrack</upnp:class><upnp:album>SmartThings Catalog</upnp:album><upnp:artist>SmartThings</upnp:artist><upnp:albumArtURI>https://graph.api.smartthings.com/api/devices/icons/st.Entertainment.entertainment2-icn?displaySize=2x</upnp:albumArtURI><dc:title>SmartThings Message</dc:title><res protocolInfo=\"http-get:*:audio/mpeg:DLNA.ORG_PN=MP3;DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01500000000000000000000000000000\" >$uri</res></item> </DIDL-Lite>"
-	def result = []
-	result << mediaRendererAction("SetAVTransportURI", [InstanceID: 0, CurrentURI: uri, CurrentURIMetaData: metaData])
-	result
+	mediaRendererAction("SetAVTransportURI", [InstanceID: 0, CurrentURI: uri, CurrentURIMetaData: metaData])
 }
 
 def resumeTrack(Map trackData = null) {
@@ -661,20 +651,20 @@ def speak(String msg){
 def subscribe() {
 	log.trace "subscribe()"
 	def result = []
-	result << subscribeAction(state.avteurl)
+	result << subscribeAction(getDataValue("avteurl"))
 	result << delayAction(2500)
-	result << subscribeAction(state.rceurl)
+	result << subscribeAction(getDataValue("rceurl"))
 	result << delayAction(2500)
 	result
 }
 def unsubscribe() {
 	def result = [
-		unsubscribeAction(state.avteurl, device.getDataValue('subscriptionId')),
-		unsubscribeAction(state.rceurl, device.getDataValue('subscriptionId')),
+		unsubscribeAction(getDataValue("avteurl"), device.getDataValue('subscriptionId')),
+		unsubscribeAction(getDataValue("rceurl"), device.getDataValue('subscriptionId')),
 
 		
-		unsubscribeAction(state.avteurl, device.getDataValue('subscriptionId1')),
-		unsubscribeAction(state.rceurl, device.getDataValue('subscriptionId1')),
+		unsubscribeAction(getDataValue("avteurl"), device.getDataValue('subscriptionId1')),
+		unsubscribeAction(getDataValue("rceurl"), device.getDataValue('subscriptionId1')),
 
 	]
 	updateDataValue("subscriptionId", "")
@@ -684,7 +674,7 @@ def unsubscribe() {
 
 def getVolume()
 {
-	mediaRendererAction("GetVolume", "RenderingControl", state.rccurl, [InstanceID: 0, Channel: "Master"])
+	mediaRendererAction("GetVolume", "RenderingControl", getDataValue("rccurl"), [InstanceID: 0, Channel: "Master"])
 }
 
 def getCurrentMedia()
@@ -714,22 +704,22 @@ private getCallBackAddress()
 private mediaRendererAction(String action) {
 	def result
 	if(action=="Play"){
-		result = mediaRendererAction(action, "AVTransport", state.avtcurl, [InstanceID:0, Speed:1])
+		result = mediaRendererAction(action, "AVTransport", getDataValue("avtcurl"), [InstanceID:0, Speed:1])
     }
 	else if (action=="Mute"){
-		result = mediaRendererAction("SetMute", "RenderingControl", state.rccurl, [InstanceID: 0, Channel: "Master", DesiredMute: 1])
+		result = mediaRendererAction("SetMute", "RenderingControl", getDataValue("rccurl"), [InstanceID: 0, Channel: "Master", DesiredMute: 1])
 	}
 	else if (action=="UnMute"){
-		result = mediaRendererAction("SetMute", "RenderingControl", state.rccurl, [InstanceID: 0, Channel: "Master", DesiredMute: 0])
+		result = mediaRendererAction("SetMute", "RenderingControl", getDataValue("rccurl"), [InstanceID: 0, Channel: "Master", DesiredMute: 0])
 	}
 	else{
-		result = mediaRendererAction(action, "AVTransport", state.avtcurl, [InstanceID:0])
+		result = mediaRendererAction(action, "AVTransport", getDataValue("avtcurl"), [InstanceID:0])
     }
 	result
 }
 
 private mediaRendererAction(String action, Map body) {
-	mediaRendererAction(action, "AVTransport", state.avtcurl, body)
+	mediaRendererAction(action, "AVTransport", getDataValue("avtcurl"), body)
 }
 
 private mediaRendererAction(String action, String service, String path, Map body = [InstanceID:0, Speed:1]) {
@@ -783,7 +773,7 @@ private String convertHexToIP(hex) {
 
 
 private getHostAddress() {
-	def parts = device.deviceNetworkId.split(":")
+	def parts = getDataValue("dni")?.split(":")
 	def ip = convertHexToIP(parts[0])
 	def port = convertHexToInt(parts[1])
 	return ip + ":" + port
@@ -799,6 +789,8 @@ private statusText(s) {
 			return "stopped"
 		case "NO_MEDIA_PRESENT":
 			return "no_media_present"
+        case "NO_DEVICE_PRESENT":
+        	retun "no_device_present"
 		default:
 			return s
 	}
@@ -837,3 +829,5 @@ private hex(value, width=2) {
 	}
 	s
 }
+
+
