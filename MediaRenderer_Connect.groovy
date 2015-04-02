@@ -1,5 +1,5 @@
 /**
- *  MediaRenderer Service Manager v 1.6.0
+ *  MediaRenderer Service Manager v 1.9.0
  *
  *  Author: SmartThings - Ulises Mujica 
  */
