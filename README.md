@@ -1,6 +1,8 @@
 # DLNA-PLAYER 
-Generic DLNA Player to Smartthings v 1.5.7
+Generic DLNA Player to Smartthings v 1.9.0
 
+Its necessary to update MediaRenderer Connect and Dlna-Player
+You must uninstall all your MediaRenderes and install again after update.
 
 
 **Installing The MediaRenderer Connect**
@@ -58,6 +60,13 @@ Get back to main window and you should have the new players in your things secti
 
 Revision History
 ----------------
+**Version 1.9.0
+* No device present detection
+* Its necesary to update the conecctor too and uninstall,reinstall the players, if you do not have software devices its not necesary to update, but recommended.
+
+**Version 1.8.0
+excluded by bugs
+
 **Version 1.7.0
 * Foobar and Software device autocorrect added
 * Its necesary to update the conecctor too and uninstall,reinstall the players, if you do not have software devices its not necesary to update, but recommended.
