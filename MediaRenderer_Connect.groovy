@@ -1,5 +1,5 @@
 /**
- *  MediaRenderer Service Manager v 1.5
+ *  MediaRenderer Service Manager v 1.6.0
  *
  *  Author: SmartThings - Ulises Mujica 
  */
@@ -152,7 +152,7 @@ def scheduledRefreshHandler() {
 
 def scheduledActionsHandler() {
     syncDevices()
-	runIn(61, scheduledRefreshHandler) 
+	runIn(60, scheduledRefreshHandler) 
 
 }
 
@@ -184,13 +184,13 @@ def addMediaRenderer() {
 	def runSubscribe = false
 	selectedMediaRenderer.each { dni ->
 		def d = getChildDevice(dni)
+		log.trace "dni $dni"
 		if(!d) {
 			def newPlayer = players.find { (it.value.ip + ":" + it.value.port) == dni }
-			//d = addChildDevice("mujica", "MediaRenderer", dni, newPlayer?.value.hub, [label:"${newPlayer?.value.name} Speaker"])
-            d = addChildDevice("mujica", "DLNA Player", dni, newPlayer?.value.hub, [label:"${newPlayer?.value.name} Speaker"])
-
-			d.setCustomData([model:newPlayer?.value.model,avtcurl:newPlayer?.value.avtcurl,avteurl:newPlayer?.value.avteurl,rccurl:newPlayer?.value.rccurl,rceurl:newPlayer?.value.rceurl,udn:newPlayer?.value.udn])
-			
+			if (newPlayer){
+				//MediaRenderer
+				d = addChildDevice("mujica", "DLNA Player", dni, newPlayer?.value.hub, [label:"${newPlayer?.value.name} Speaker","data":["model":newPlayer?.value.model,"avtcurl":newPlayer?.value.avtcurl,"avteurl":newPlayer?.value.avteurl,"rccurl":newPlayer?.value.rccurl,"rceurl":newPlayer?.value.rceurl,"udn":newPlayer?.value.udn,"dni":dni]])
+			}
 			runSubscribe = true
 		} 
 	}
@@ -226,8 +226,10 @@ def locationHandler(evt) {
 			if (deviceChangedValues) {
                 def children = getChildDevices()
 				children.each {
-                    if (parsedEvent.ssdpUSN.toString().contains(it.state.udn)) {
+                    if (parsedEvent.ssdpUSN.toString().contains(it.getDataValue("udn"))) {
 						it.setDeviceNetworkId((parsedEvent.ip + ":" + parsedEvent.port)) //could error if device with same dni already exists
+						it.updateDataValue("dni", (parsedEvent.ip + ":" + parsedEvent.port))
+						log.trace "Updated Device IP"
 					}
 				}
 			}
