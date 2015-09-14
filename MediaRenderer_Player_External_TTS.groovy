@@ -224,7 +224,7 @@ def parse(description) {
 					def transportUri = xml1.InstanceID.AVTransportURI.'@val'.text()
 					def trackNumber = xml1.InstanceID.CurrentTrack.'@val'.text()
 
-					if (trackUri.contains("//s3.amazonaws.com/smartapp-") || transportUri.contains("//s3.amazonaws.com/smartapp-") ) {
+					if (trackUri.contains("//s3.amazonaws.com/smartapp-") || transportUri.contains("//s3.amazonaws.com/smartapp-") || trackUri.contains("translate.google.com/translate_tts") || transportUri.contains("translate.google.com/translate_tts")  ) {
 						log.trace "Skipping event generation for sound file $trackUri"
 					}
 					else {
