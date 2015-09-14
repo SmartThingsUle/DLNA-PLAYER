@@ -60,6 +60,9 @@ Get back to main window and you should have the new players in your things secti
 
 Revision History
 ----------------
+**Version 1.9.1
+* External TTS Function, This is a temporal fix, whe hope Smarthings fix the TTS function, Once Smartthings fix the function , you must to return to normal media player
+
 **Version 1.9.0
 * No device present detection
 * Its necesary to update the conecctor too and uninstall,reinstall the players, if you do not have software devices its not necesary to update, but recommended.
