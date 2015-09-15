@@ -1,5 +1,5 @@
 /**
- *  MediaRenderer Service Manager v 1.9.0
+ *  MediaRenderer Service Manager v 1.9.1
  *
  *  Author: SmartThings - Ulises Mujica 
  */
@@ -15,7 +15,7 @@ definition(
 )
 
 preferences {
-    page(name: "MainPage", title: "Search and config your Media Renderers",nextPage:"", install:true, uninstall: true){
+    page(name: "MainPage", title: "Search and config your Media Renderers", install:true, uninstall: true){
     	section("") {
             href(name: "discover",title: "Discovery process",required: false,page: "mediaRendererDiscovery",description: "tap to start searching")
         }
@@ -23,7 +23,7 @@ preferences {
             input("refreshMRInterval", "number", title:"Enter refresh players interval (min)",defaultValue:"5", required:false)
         }
     }
-    page(name: "mediaRendererDiscovery", title:"Discovery Started!", nextPage:"")
+    page(name: "mediaRendererDiscovery", title:"Discovery Started!")
 }
 
 def mediaRendererDiscovery()
