@@ -1,5 +1,5 @@
 /**
- *  MediaRenderer Service Manager v 1.9.1
+ *  MediaRenderer Service Manager v 1.9.2
  *
  *  Author: SmartThings - Ulises Mujica 
  */
@@ -247,18 +247,23 @@ def locationHandler(evt) {
 			body = new XmlSlurper().parseText(bodyString)
 
 			// Avoid add sonos devices	
+            //log.debug "${body.encodeAsHTML()}"
+           
+            device = body?.device
+            body?.device?.deviceList?.device?.each{
+                if (it?.deviceType?.text().contains("urn:schemas-upnp-org:device:MediaRenderer:1")) {
+                    device = it
+                }
+            }
             
-			if ( !body?.device?.modelName?.text().startsWith("Sonos") && body?.device?.deviceType?.text().contains("urn:schemas-upnp-org:device:MediaRenderer:1"))
+			if ( !device?.modelName?.text().startsWith("Sonos") && device?.deviceType?.text().contains("urn:schemas-upnp-org:device:MediaRenderer:1"))
 			{
 				def avtcurl = ""
 				def avteurl = ""
 				def rccurl = ""
 				def rceurl = ""
-
-				
-                
-                
-				body?.device?.serviceList?.service?.each{
+         
+				device?.serviceList?.service?.each{
 				  if (it?.serviceType?.text().contains("AVTransport")) {
 						avtcurl = it?.controlURL.text()
 						avteurl = it?.eventSubURL.text()
@@ -271,10 +276,10 @@ def locationHandler(evt) {
 				
 				
 				def mediaRenderers = getMediaRendererPlayer()
-				def player = mediaRenderers.find {it?.key?.contains(body?.device?.UDN?.text())}
+				def player = mediaRenderers.find {it?.key?.contains(device?.UDN?.text())}
 				if (player)
 				{
-					player.value << [name:body?.device?.friendlyName?.text(),model:body?.device?.modelName?.text(), serialNumber:body?.device?.UDN?.text(), verified: true,avtcurl:avtcurl,avteurl:avteurl,rccurl:rccurl,rceurl:rceurl,udn:body?.device?.UDN?.text()]
+					player.value << [name:device?.friendlyName?.text(),model:device?.modelName?.text(), serialNumber:device?.UDN?.text(), verified: true,avtcurl:avtcurl,avteurl:avteurl,rccurl:rccurl,rceurl:rceurl,udn:device?.UDN?.text()]
 				}
 				
 			}
