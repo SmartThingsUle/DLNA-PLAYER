@@ -1,5 +1,5 @@
 /**
- *  MediaRenderer Service Manager v 1.9.2
+ *  MediaRenderer Service Manager v 1.9.3
  *
  *  Author: SmartThings - Ulises Mujica 
  */
@@ -265,12 +265,12 @@ def locationHandler(evt) {
          
 				device?.serviceList?.service?.each{
 				  if (it?.serviceType?.text().contains("AVTransport")) {
-						avtcurl = it?.controlURL.text()
-						avteurl = it?.eventSubURL.text()
+						avtcurl = it?.controlURL?.text().startsWith("/")? it?.controlURL.text() : "/" + it?.controlURL.text()
+						avteurl = it?.eventSubURL?.text().startsWith("/")? it?.eventSubURL.text() : "/" + it?.eventSubURL.text()
 					}
 					else if (it?.serviceType?.text().contains("RenderingControl")) {
-						rccurl = it?.controlURL.text()
-						rceurl = it?.eventSubURL.text()
+						rccurl = it?.controlURL?.text().startsWith("/")? it?.controlURL?.text() : "/" + it?.controlURL?.text()
+						rceurl = it?.eventSubURL?.text().startsWith("/")? it?.eventSubURL?.text() : "/" + it?.eventSubURL?.text()
 					}
 				}
 				
