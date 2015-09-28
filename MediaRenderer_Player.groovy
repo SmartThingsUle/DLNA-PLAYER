@@ -636,8 +636,10 @@ def restoreTrack(Map trackData = null) {
 }
 
 def playText(String msg) {
-	def result = setText(msg)
+	def result = []
+    result << setText(msg)
 	result << mediaRendererAction("Play")
+    result.flatten()
 }
 
 def setText(String msg) {
