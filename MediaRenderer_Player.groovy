@@ -1,5 +1,5 @@
 /** 
- *  MediaRenderer Player v1.9.0
+ *  MediaRenderer Player v1.9.3
  *
  *  Author: SmartThings - Ulises Mujica (Ule)
  *
@@ -589,13 +589,15 @@ def playTrackAtVolume(String uri, volume) {
 }
 
 def playTrack(String uri, metaData="") {
-	def result = setTrack(uri, metaData)
+	def result = []
+    result << setTrack(uri, metaData)
 	result << mediaRendererAction("Play")
 	result.flatten()
 }
 
 def playTrack(Map trackData) {
-	def result = setTrack(trackData)
+	def result = []
+    result << setTrack(trackData)
 	result << mediaRendererAction("Play")
 	result.flatten()
 }
@@ -611,10 +613,10 @@ def setTrack(String uri, metaData="")
 }
 
 def resumeTrack(Map trackData = null) {
-
-	def result = restoreTrack(trackData)
+	def result = []
+    result << restoreTrack(trackData)
 	result << mediaRendererAction("Play")
-	result
+	result.flatten()
 }
 
 def restoreTrack(Map trackData = null) {
