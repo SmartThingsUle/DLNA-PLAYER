@@ -238,7 +238,7 @@ def parse(description) {
 					def trackUri = xml1.InstanceID.CurrentTrackURI.'@val'.text()
 					def transportUri = xml1.InstanceID.AVTransportURI.'@val'.text()
 					def trackNumber = xml1.InstanceID.CurrentTrack.'@val'.text()
-//|| trackUri.contains("translate.google.com/translate_tts") || transportUri.contains("translate.google.com/translate_tts")
+					//|| trackUri.contains("translate.google.com/translate_tts") || transportUri.contains("translate.google.com/translate_tts")
 					if (trackUri.contains("//s3.amazonaws.com/smartapp-") || transportUri.contains("//s3.amazonaws.com/smartapp-")   ) {
 						log.trace "Skipping event generation for sound file $trackUri"
 					}
@@ -254,7 +254,7 @@ def parse(description) {
 
 						if (trackMeta || transportMeta) {
 							def metaDataLoad = trackMeta  ? trackMeta : transportMeta
-                            log.debug metaDataLoad
+                            //log.debug metaDataLoad
                             def metaData = metaDataLoad?.startsWith("<item") ?  "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns:pxn=\"urn:schemas-panasonic-com:pxn\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\">$metaDataLoad</DIDL-Lite>": metaDataLoad 
 							metaData = metaData.contains("dlna:dlna") &&  !metaData.contains("xmlns:dlna") ? metaData.replace("<DIDL-Lite"," <DIDL-Lite xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\"") : metaData
 							metaData = metaData.contains("pxn:ContentSourceType") &&  !metaData.contains("xmlns:pxn") ? metaData.replace("<DIDL-Lite"," <DIDL-Lite xmlns:pxn=\"urn:schemas-panasonic-com:pxn\"") : metaData
