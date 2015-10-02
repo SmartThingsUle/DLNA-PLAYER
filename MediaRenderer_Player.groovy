@@ -1,5 +1,5 @@
 /** 
- *  MediaRenderer Player v1.9.3
+ *  MediaRenderer Player v1.9.4
  *
  *  Author: SmartThings - Ulises Mujica (Ule)
  *
