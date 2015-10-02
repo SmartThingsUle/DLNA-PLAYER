@@ -1,5 +1,5 @@
 /** 
- *  MediaRenderer Player v1.9.4
+ *  MediaRenderer Player v1.9.4a
  *
  *  Author: SmartThings - Ulises Mujica (Ule)
  *
@@ -254,20 +254,23 @@ def parse(description) {
 
 						if (trackMeta || transportMeta) {
 							def metaDataLoad = trackMeta  ? trackMeta : transportMeta
-                            //log.debug metaDataLoad
+                            
                             def metaData = metaDataLoad?.startsWith("<item") ?  "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns:pxn=\"urn:schemas-panasonic-com:pxn\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\">$metaDataLoad</DIDL-Lite>": metaDataLoad 
 							metaData = metaData.contains("dlna:dlna") &&  !metaData.contains("xmlns:dlna") ? metaData.replace("<DIDL-Lite"," <DIDL-Lite xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\"") : metaData
 							metaData = metaData.contains("pxn:ContentSourceType") &&  !metaData.contains("xmlns:pxn") ? metaData.replace("<DIDL-Lite"," <DIDL-Lite xmlns:pxn=\"urn:schemas-panasonic-com:pxn\"") : metaData
-                            
+                            metaData = metaData != "<DIDL-Lite></DIDL-Lite><DIDL-Lite></DIDL-Lite>" ? metaData : null 
                             def parsedMetaData
-                            
+                            //log.debug metaData							
                             try {
-           						 parsedMetaData = parseXml( metaData)
+								if (metaData){
+                                	parsedMetaData = parseXml(metaData)
+                                }
        						}catch (e) {
-                                log.error "Error when parsing XML Metadata: " + e
+                                log.debug "Error when parsing XML Metadata: " + e
                                 log.debug "Help us to fix this error, report this incident"
                                 log.debug metaData
                             }
+							//log.info parsedMetaData
 							if (parsedMetaData){
                                 def trackXml = parsedMetaData;
                                 // Song properties
