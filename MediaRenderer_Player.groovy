@@ -180,7 +180,14 @@ def parse(description) {
 						}
 					}
 				}
-				
+				node = msg.xml.Body.GetTransportSettingsResponse
+				if (node.size()) {
+                	def currentPlayMode = node.PlayMode.text()
+                    
+                    if (currentPlayMode) {
+						sendEvent(name: "playMode", value: currentPlayMode, description: "$device.displayName Play Mode is $currentPlayMode")
+					}
+				}
 
 				
 
@@ -202,7 +209,7 @@ def parse(description) {
 						if (currentStatus == "no_media_present") {sendEvent(name: "trackDescription",value: "",descriptionText: "", displayed: false)}
 					}
 
-					// Volume level
+					// Volume level 
 					def currentLevel = xml1.InstanceID.Volume.find{it.'@channel' == 'Master'}.'@val'.text()
 					currentLevel = currentLevel?:xml1.InstanceID.Volume.find{it.'@Channel' == 'Master'}.'@val'.text()
 
@@ -210,10 +217,18 @@ def parse(description) {
 						sendEvent(name: "level", value: currentLevel, description: "$device.displayName volume is $currentLevel")
 					}
                     
+					
+					// PlayMode 
+					def currentPlayMode = xml1.InstanceID.CurrentPlayMode.'@val'.text()
+					
+                    if (currentPlayMode) {
+						sendEvent(name: "playMode", value: currentPlayMode, description: "$device.displayName Play Mode is $currentPlayMode")
+					}
+		
 
 					// Mute status
 					def currentMute = xml1.InstanceID.Mute.find{it.'@channel' == 'Master'}.'@val'.text()
-
+                    currentMute = currentMute?:xml1.InstanceID.Mute.find{it.'@Channel' == 'Master'}.'@val'.text()
 					if (currentMute) {
 						def value = currentMute == "1" ? "muted" : "unmuted"
                         sendEvent(name: "mute", value: value, descriptionText: "$device.displayName is $value")
@@ -223,8 +238,8 @@ def parse(description) {
 					def trackUri = xml1.InstanceID.CurrentTrackURI.'@val'.text()
 					def transportUri = xml1.InstanceID.AVTransportURI.'@val'.text()
 					def trackNumber = xml1.InstanceID.CurrentTrack.'@val'.text()
-
-					if (trackUri.contains("//s3.amazonaws.com/smartapp-") || transportUri.contains("//s3.amazonaws.com/smartapp-") ) {
+//|| trackUri.contains("translate.google.com/translate_tts") || transportUri.contains("translate.google.com/translate_tts")
+					if (trackUri.contains("//s3.amazonaws.com/smartapp-") || transportUri.contains("//s3.amazonaws.com/smartapp-")   ) {
 						log.trace "Skipping event generation for sound file $trackUri"
 					}
 					else {
@@ -239,52 +254,53 @@ def parse(description) {
 
 						if (trackMeta || transportMeta) {
 							def metaDataLoad = trackMeta  ? trackMeta : transportMeta
-                            				def metaData = metaDataLoad?.startsWith("<item") ?  "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\">$metaDataLoad</DIDL-Lite>": metaDataLoad 
+                            log.debug metaDataLoad
+                            def metaData = metaDataLoad?.startsWith("<item") ?  "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns:pxn=\"urn:schemas-panasonic-com:pxn\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\">$metaDataLoad</DIDL-Lite>": metaDataLoad 
 							metaData = metaData.contains("dlna:dlna") &&  !metaData.contains("xmlns:dlna") ? metaData.replace("<DIDL-Lite"," <DIDL-Lite xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\"") : metaData
 							metaData = metaData.contains("pxn:ContentSourceType") &&  !metaData.contains("xmlns:pxn") ? metaData.replace("<DIDL-Lite"," <DIDL-Lite xmlns:pxn=\"urn:schemas-panasonic-com:pxn\"") : metaData
-							def stationMetaXml = metaData ? parseXml(metaData) : null
-							
-							
-							
-							// Use the track metadata for song ID unless it's a radio station
-							//def trackXml = (trackMeta && !isRadioStation) || !stationMetaXml ? parseXml(trackMeta) : stationMetaXml
-							def trackXml = stationMetaXml;
-							// Song properties
-							def currentName = trackXml.item.title.text()
-							def currentArtist = trackXml.item.creator.text()
-							def currentAlbum  = trackXml.item.album.text()
-							def currentItemId  = trackXml.item.'@id'.text()
-							def currentParentId  = trackXml.item.'@parentID'.text()
-							def currentTrackDescription = currentName
-							
-							if (transportUri.contains(currentParentId) && currentItemId){
-								transportUri = transportUri.replaceAll(/%26fid%3d.*?%26/, "%26fid%3d$currentItemId%26")
-								state.transportUri = transportUri
-							}
-							
-							
-							def descriptionText = "$device.displayName is playing $currentTrackDescription"
-							if (currentArtist) {
-								currentTrackDescription += " - $currentArtist"
-								descriptionText += " by $currentArtist"
-							}
+                            
+                            def parsedMetaData
+                            
+                            try {
+           						 parsedMetaData = parseXml( metaData)
+       						}catch (e) {
+                                log.error "Error when parsing XML Metadata: " + e
+                                log.debug "Help us to fix this error, report this incident"
+                                log.debug metaData
+                            }
+							if (parsedMetaData){
+                                def trackXml = parsedMetaData;
+                                // Song properties
+                                def currentName = trackXml.item.title.text()
+                                def currentArtist = trackXml.item.creator.text()
+                                def currentAlbum  = trackXml.item.album.text()
+                                def currentItemId  = trackXml.item.'@id'.text()
+                                def currentParentId  = trackXml.item.'@parentID'.text()
+                                def currentTrackDescription = currentName
 
-							// Track Description Event
-								sendEvent(name: "trackDescription",value: currentTrackDescription.replaceAll("_"," "),descriptionText: descriptionText	)
+                                if (transportUri.contains(currentParentId) && currentItemId){
+                                    transportUri = transportUri.replaceAll(/%26fid%3d.*?%26/, "%26fid%3d$currentItemId%26")
+                                    state.transportUri = transportUri
+                                }
 
-							// Have seen cases where there is no engueued or transport metadata. Haven't figured out how to resume in that case
-							// so not creating a track data event.
-							//
-							if (stationMetaXml) {
+
+                                def descriptionText = "$device.displayName is playing $currentTrackDescription"
+                                if (currentArtist) {
+                                    currentTrackDescription += " - $currentArtist"
+                                    descriptionText += " by $currentArtist"
+                                }
+
+                                // Track Description Event
+                                    sendEvent(name: "trackDescription",value: currentTrackDescription.replaceAll("_"," "),descriptionText: descriptionText	)
+
 								// Track Data Event
-								// Use track description for the data event description unless it is a queued song (to support resumption & use in mood music)
 								def station =  currentName
 
 								def uri = transportUri ?  transportUri : trackUri
 								def previousState = device.currentState("trackData")?.jsonValue
-								def isDataStateChange = !previousState || (previousState.station != station || previousState.metaData != metaData)
+								def isDataStateChange = !previousState || (previousState.name != currentName || previousState.metaData != metaData)
 
-                                def trackDataValue = [
+								def trackDataValue = [
 									station:  station ,
 									name: currentName,
 									artist: currentArtist,
@@ -302,10 +318,11 @@ def parse(description) {
 								if (uri?.startsWith("dlna-playcontainer:") && trackUri && !trackUri?.startsWith("dlna-playcontainer:") && !trackUri?.startsWith("http://127.0.0.1")){
 									results << createEvent(name: "trackData",value: trackDataValue.encodeAsJSON(),descriptionText: currentDescription,displayed: false,isStateChange: isDataStateChange	)
 								}
-                                trackDataValue.uri = uri
-                                trackDataValue.station = uri?.startsWith("http://127.0.0.1")? "Unavailable-$station":(uri?.startsWith("dlna-playcontainer:")? "P.L. $station": station )
+								trackDataValue.uri = uri
+								trackDataValue.station = uri?.startsWith("http://127.0.0.1")? "Unavailable-$station":(uri?.startsWith("dlna-playcontainer:")? "P.L. $station": station )
 								results << createEvent(name: "trackData",value: trackDataValue.encodeAsJSON(),descriptionText: currentDescription,displayed: false,isStateChange: isDataStateChange	)
-							}
+
+                            }
 						}
 					}
 				}
@@ -375,9 +392,11 @@ def refresh() {
 		state.lastRefreshTime = eventTime
 		log.trace "Refresh()"
         def result = []
+        //result << unsubscribe()
         result << subscribe()
 		result << getCurrentStatus()
 		result << getVolume()
+        result << getPlayMode()
 		result.flatten()
 	}else{
     	log.trace "Refresh skipped"
@@ -406,14 +425,14 @@ def setLocalLevel(val, delay=0) {
 	if (delay) {
 		result << delayAction(delay)
 	}
-	result << mediaRendererAction("SetVolume", "RenderingControl", getDataValue("rccurl") , [InstanceID: 0, Channel: "Master", DesiredVolume: v])
+	result << mediaRendererAction("SetVolume", "RenderingControl", getDataValue("rccurl") , [InstanceID:0, Channel:"Master", DesiredVolume:v])
 	//result << delayAction(50)
-	result << mediaRendererAction("GetVolume", "RenderingControl", getDataValue("rccurl"), [InstanceID: 0, Channel: "Master"])
+	result << mediaRendererAction("GetVolume", "RenderingControl", getDataValue("rccurl"), [InstanceID:0, Channel:"Master"])
 	result
 }
 // Always sets only this level
 def setVolume(val) {
-	mediaRendererAction("SetVolume", "RenderingControl", getDataValue("rccurl") , [InstanceID: 0, Channel: "Master", DesiredVolume: Math.max(Math.min(Math.round(val), 100), 0)])
+	mediaRendererAction("SetVolume", "RenderingControl", getDataValue("rccurl") , [InstanceID:0, Channel:"Master", DesiredVolume:Math.max(Math.min(Math.round(val), 100), 0)])
 }
 
 private childLevel(previousMaster, newMaster, previousChild)
@@ -454,24 +473,24 @@ def previousTrack() {
 }
 
 def seek(trackNumber) {
-	mediaRendererAction("Seek", "AVTransport", getDataValue("avtcurl") , [InstanceID: 0, Unit: "TRACK_NR", Target: trackNumber])
+	mediaRendererAction("Seek", "AVTransport", getDataValue("avtcurl") , [InstanceID:0, Unit:"TRACK_NR", Target:trackNumber])
 }
 
 def mute()
 {
 	// TODO - handle like volume?
-	mediaRendererAction("SetMute", "RenderingControl", getDataValue("rccurl"), [InstanceID: 0, Channel: "Master", DesiredMute: 1])
+	mediaRendererAction("SetMute", "RenderingControl", getDataValue("rccurl"), [InstanceID:0, Channel:"Master", DesiredMute:1])
 }
 
 def unmute()
 {
 	// TODO - handle like volume?
-	mediaRendererAction("SetMute", "RenderingControl", getDataValue("rccurl"), [InstanceID: 0, Channel: "Master", DesiredMute: 0])
+	mediaRendererAction("SetMute", "RenderingControl", getDataValue("rccurl"), [InstanceID:0, Channel:"Master", DesiredMute:0])
 }
 
 def setPlayMode(mode)
 {
-	mediaRendererAction("SetPlayMode", [InstanceID: 0, NewPlayMode: mode])
+	mediaRendererAction("SetPlayMode", [InstanceID:0, NewPlayMode:mode])
 }
 def switchDoNotDisturb(){
     switch(device.currentValue("doNotDisturb")) {
@@ -491,14 +510,16 @@ def switchDoNotDisturb(){
 
 
 def playByMode(uri, duration, volume,newTrack,mode) {
+log.trace uri
 	def playTrack = false
 	def eventTime = new Date().time
 	def track = device.currentState("trackData")?.jsonValue
 	def currentVolume = device.currentState("level")?.integerValue
 	def currentStatus = device.currentValue("status")
+    def currentPlayMode = device.currentValue("playMode")
     def currentDoNotDisturb = device.currentValue("doNotDisturb")
 	def level = volume as Integer
-	def actionsDelayTime = actionsDelay ? (actionsDelay as Integer) * 1000 :0
+	def actionsDelayTime =  actionsDelay ? (actionsDelay as Integer) * 1000 :0
 	def result = []
 	duration = duration ? (duration as Integer) : 0
 	switch(mode) {
@@ -514,41 +535,55 @@ def playByMode(uri, duration, volume,newTrack,mode) {
 		if (uri){
 			uri = uri.replace("https:","http:")
             uri = uri +  ( uri.contains("?") ? "&":"?") + "ts=$eventTime"
-			if (level) {
-                result << mediaRendererAction("Stop")
-                if(actionsDelayTime > 0){result << delayAction(actionsDelayTime)}
+
+            result << mediaRendererAction("Stop")
+            result << delayAction(1000 + actionsDelayTime)
+            
+
+            if (level) {
+                //if(actionsDelayTime > 0){result << delayAction(actionsDelayTime)}
                 result << setVolume(level)
-				result << delayAction(2000 + actionsDelayTime)
+				result << delayAction(2200 + actionsDelayTime)
+			}
+            if (currentPlayMode != "NORMAL") {
+                result << setPlayMode("NORMAL")
+                result << delayAction(2000 + actionsDelayTime)
 			}
 			result << setTrack(uri)
-			delayAction(2000 + actionsDelayTime)
+			result << delayAction(2000 + actionsDelayTime)
 
 			result << mediaRendererAction("Play")
-			if (duration < 3){
+			if (duration < 2){
 				def matcher = uri =~ /[^\/]+.mp3/
-				if (matcher){duration =  Math.max(Math.round(matcher[0].length()/8),3)}
+				if (matcher){duration =  Math.max(Math.round(matcher[0].length()/8),2)}
 			}
-			def delayTime = (duration * 1000) + 2000
+			def delayTime = (duration * 1000) + 3000
 			delayTime = customDelay ? ((customDelay as Integer) * 1000) + delayTime : delayTime
 			state.secureEventTime = eventTime + delayTime + 7000
 			result << delayAction(delayTime)
 		}
 		if (track ) {
-			if (level) {
-                result << mediaRendererAction("Stop")
-                if(actionsDelayTime > 0){result << delayAction(actionsDelayTime)}
+
+            result << mediaRendererAction("Stop")
+            result << delayAction(1000 + actionsDelayTime)
+
+            if (level) {
                 result << setVolume(currentVolume)
-				result << delayAction(2000 + actionsDelayTime)
+				result << delayAction(2200 + actionsDelayTime)
+			}
+            if (currentPlayMode != "NORMAL") {
+                result << setPlayMode(currentPlayMode)
+                result << delayAction(2000 + actionsDelayTime)
 			}
 			if (!track.uri.startsWith("http://127.0.0.1")){
 				result << setTrack(track)
-				delayAction(2000 + actionsDelayTime)
+				result << delayAction(2000 + actionsDelayTime)
 			}
 			if (playTrack) {
 				if (!track.uri.startsWith("http://127.0.0.1")){
 					result << mediaRendererAction("Play")
 				}else{
-					//result << mediaRendererAction("Next")
+                    result << mediaRendererAction("Next")
 				}
 			}else{
 				result << mediaRendererAction("Stop")
@@ -608,8 +643,8 @@ def setTrack(Map trackData) {
 
 def setTrack(String uri, metaData="")
 {
-	metaData = metaData?:"<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\"><item id=\"1\" parentID=\"1\" restricted=\"1\"><upnp:class>object.item.audioItem.musicTrack</upnp:class><upnp:album>SmartThings Catalog</upnp:album><upnp:artist>SmartThings</upnp:artist><upnp:albumArtURI>https://graph.api.smartthings.com/api/devices/icons/st.Entertainment.entertainment2-icn?displaySize=2x</upnp:albumArtURI><dc:title>SmartThings Message</dc:title><res protocolInfo=\"http-get:*:audio/mpeg:DLNA.ORG_PN=MP3;DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01500000000000000000000000000000\" >$uri</res></item> </DIDL-Lite>"
-	mediaRendererAction("SetAVTransportURI", [InstanceID: 0, CurrentURI: uri, CurrentURIMetaData: metaData])
+	metaData = metaData?:"<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\"><item id=\"1\" parentID=\"1\" restricted=\"1\"><upnp:class>object.item.audioItem.musicTrack</upnp:class><upnp:album>SmartThings Catalog</upnp:album><upnp:artist>SmartThings</upnp:artist><upnp:albumArtURI>https://graph.api.smartthings.com/api/devices/icons/st.Entertainment.entertainment2-icn?displaySize=2x</upnp:albumArtURI><dc:title>SmartThings Message</dc:title><res protocolInfo=\"http-get:*:audio/mpeg:DLNA.ORG_PN=MP3;DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01500000000000000000000000000000\" >${groovy.xml.XmlUtil.escapeXml(uri)} </res></item> </DIDL-Lite>"
+	mediaRendererAction("SetAVTransportURI", [InstanceID:0, CurrentURI:uri, CurrentURIMetaData:metaData])
 }
 
 def resumeTrack(Map trackData = null) {
@@ -620,14 +655,13 @@ def resumeTrack(Map trackData = null) {
 }
 
 def restoreTrack(Map trackData = null) {
-
 	def result = []
 	def data = trackData
 	if (!data) {
 		data = device.currentState("trackData")?.jsonValue
 	}
 	if (data) {
-		result << mediaRendererAction("SetAVTransportURI", [InstanceID: 0, CurrentURI: data.uri, CurrentURIMetaData: data.metaData])
+		result << mediaRendererAction("SetAVTransportURI", [InstanceID:0, CurrentURI:data.uri, CurrentURIMetaData:data.metaData])
 	}
 	else {
 		log.warn "Previous track data not found"
@@ -636,10 +670,8 @@ def restoreTrack(Map trackData = null) {
 }
 
 def playText(String msg) {
-	def result = []
-    result << setText(msg)
+	def result = setText(msg)
 	result << mediaRendererAction("Play")
-    result.flatten()
 }
 
 def setText(String msg) {
@@ -663,14 +695,12 @@ def subscribe() {
 	result
 }
 def unsubscribe() {
-	def result = [
+	log.trace "unsubscribe()"
+    def result = [
 		unsubscribeAction(getDataValue("avteurl"), device.getDataValue('subscriptionId')),
 		unsubscribeAction(getDataValue("rceurl"), device.getDataValue('subscriptionId')),
-
-		
 		unsubscribeAction(getDataValue("avteurl"), device.getDataValue('subscriptionId1')),
 		unsubscribeAction(getDataValue("rceurl"), device.getDataValue('subscriptionId1')),
-
 	]
 	updateDataValue("subscriptionId", "")
 	updateDataValue("subscriptionId1", "")
@@ -679,12 +709,16 @@ def unsubscribe() {
 
 def getVolume()
 {
-	mediaRendererAction("GetVolume", "RenderingControl", getDataValue("rccurl"), [InstanceID: 0, Channel: "Master"])
+	mediaRendererAction("GetVolume", "RenderingControl", getDataValue("rccurl"), [InstanceID:0, Channel:"Master"])
 }
 
+def getPlayMode()
+{
+	mediaRendererAction("GetTransportSettings", [InstanceID:0])
+}
 def getCurrentMedia()
 {
-	mediaRendererAction("GetPositionInfo", [InstanceID:0, Channel: "Master"])
+	mediaRendererAction("GetPositionInfo", [InstanceID:0, Channel:"Master"])
 }
 
 def getCurrentStatus() //transport info
@@ -694,7 +728,7 @@ def getCurrentStatus() //transport info
 
 def getSystemString()
 {
-	mediaRendererAction("GetString", "SystemProperties", "/SystemProperties/Control", [VariableName: "UMTracking"])
+	mediaRendererAction("GetString", "SystemProperties", "/SystemProperties/Control", [VariableName:"UMTracking"])
 }
 
 private messageFilename(String msg) {
@@ -712,10 +746,10 @@ private mediaRendererAction(String action) {
 		result = mediaRendererAction(action, "AVTransport", getDataValue("avtcurl"), [InstanceID:0, Speed:1])
     }
 	else if (action=="Mute"){
-		result = mediaRendererAction("SetMute", "RenderingControl", getDataValue("rccurl"), [InstanceID: 0, Channel: "Master", DesiredMute: 1])
+		result = mediaRendererAction("SetMute", "RenderingControl", getDataValue("rccurl"), [InstanceID: 0, Channel:"Master", DesiredMute:1])
 	}
 	else if (action=="UnMute"){
-		result = mediaRendererAction("SetMute", "RenderingControl", getDataValue("rccurl"), [InstanceID: 0, Channel: "Master", DesiredMute: 0])
+		result = mediaRendererAction("SetMute", "RenderingControl", getDataValue("rccurl"), [InstanceID: 0, Channel:"Master", DesiredMute:0])
 	}
 	else{
 		result = mediaRendererAction(action, "AVTransport", getDataValue("avtcurl"), [InstanceID:0])
@@ -748,7 +782,7 @@ private subscribeAction(path, callbackPath="") {
 			HOST: ip,
 			CALLBACK: "<http://${address}/notify$callbackPath>",
 			NT: "upnp:event",
-			TIMEOUT: "Second-600"])
+			TIMEOUT: "Second-1200"])
 	result
 }
 
@@ -835,4 +869,16 @@ private hex(value, width=2) {
 	s
 }
 
-
+private textToSpeechT(message){
+    if (message) {
+       
+       try {
+           	textToSpeech(message)
+        }
+        catch (e) {
+        	[uri: "http://www.translate.google.com/translate_tts?tl=en&client=t&q=" + URLEncoder.encode(message, "UTF-8") +"&", duration: "${Math.max(Math.round(message.length()/8),2)}"]
+        }
+    }else{
+    	 [uri: "http://www.translate.google.com/translate_tts?tl=en&client=t&q=" + URLEncoder.encode("You selected the Text to Speach Function but did not enter a Message", "UTF-8") +"&", duration: "10"]
+    }
+}
