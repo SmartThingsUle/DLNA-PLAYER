@@ -1,5 +1,5 @@
 /** 
- *  MediaRenderer Player v1.9.4a
+ *  MediaRenderer Player v1.9.4b
  *
  *  Author: SmartThings - Ulises Mujica (Ule)
  *
@@ -258,7 +258,7 @@ def parse(description) {
                             def metaData = metaDataLoad?.startsWith("<item") ?  "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns:pxn=\"urn:schemas-panasonic-com:pxn\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\">$metaDataLoad</DIDL-Lite>": metaDataLoad 
 							metaData = metaData.contains("dlna:dlna") &&  !metaData.contains("xmlns:dlna") ? metaData.replace("<DIDL-Lite"," <DIDL-Lite xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\"") : metaData
 							metaData = metaData.contains("pxn:ContentSourceType") &&  !metaData.contains("xmlns:pxn") ? metaData.replace("<DIDL-Lite"," <DIDL-Lite xmlns:pxn=\"urn:schemas-panasonic-com:pxn\"") : metaData
-                            metaData = metaData != "<DIDL-Lite></DIDL-Lite><DIDL-Lite></DIDL-Lite>" ? metaData : null 
+                            metaData = metaData.contains("<DIDL-Lite></DIDL-Lite>") ?  null : metaData
                             def parsedMetaData
                             //log.debug metaData							
                             try {
