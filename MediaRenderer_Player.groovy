@@ -1,5 +1,5 @@
 /** 
- *  MediaRenderer Player v1.9.4b
+ *  MediaRenderer Player v1.9.5
  *
  *  Author: SmartThings - Ulises Mujica (Ule)
  *
@@ -9,6 +9,7 @@
 preferences {
 		input(name: "customDelay", type: "enum", title: "Delay before msg (seconds)", options: ["0","1","2","3","4","5"])
 		input(name: "actionsDelay", type: "enum", title: "Delay between actions (seconds)", options: ["0","1","2","3"])
+        input "externalTTS", "bool", title: "Use External Text to Speech", required: false, defaultValue: false
 }
 metadata {
 	// Automatically generated. Make future change here.
@@ -47,6 +48,7 @@ metadata {
 		command "setDoNotDisturb", ["string"]
 		command "switchDoNotDisturb"
         command "speak", ["string"]
+        command "playTrack", ["string","string"]
 	}
 
 	// Main
@@ -134,6 +136,7 @@ def parse(description) {
     def results = []
 	try {
 		def msg = parseLanMessage(description)
+        //log.debug "msg $msg"
         if (msg.headers)
 		{
 			def hdr = msg.header.split('\n')[0]
@@ -258,9 +261,9 @@ def parse(description) {
                             def metaData = metaDataLoad?.startsWith("<item") ?  "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns:pxn=\"urn:schemas-panasonic-com:pxn\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\">$metaDataLoad</DIDL-Lite>": metaDataLoad 
 							metaData = metaData.contains("dlna:dlna") &&  !metaData.contains("xmlns:dlna") ? metaData.replace("<DIDL-Lite"," <DIDL-Lite xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\"") : metaData
 							metaData = metaData.contains("pxn:ContentSourceType") &&  !metaData.contains("xmlns:pxn") ? metaData.replace("<DIDL-Lite"," <DIDL-Lite xmlns:pxn=\"urn:schemas-panasonic-com:pxn\"") : metaData
-                            metaData = metaData.contains("<DIDL-Lite></DIDL-Lite>") ?  null : metaData
+                            metaData = metaData != "<DIDL-Lite></DIDL-Lite><DIDL-Lite></DIDL-Lite>" ? metaData : null 
                             def parsedMetaData
-                            //log.debug metaData							
+                            //log.debug "metaData response $metaData"							
                             try {
 								if (metaData){
                                 	parsedMetaData = parseXml(metaData)
@@ -400,6 +403,7 @@ def refresh() {
 		result << getCurrentStatus()
 		result << getVolume()
         result << getPlayMode()
+        result << getCurrentMedia()
 		result.flatten()
 	}else{
     	log.trace "Refresh skipped"
@@ -513,8 +517,8 @@ def switchDoNotDisturb(){
 
 
 def playByMode(uri, duration, volume,newTrack,mode) {
-log.trace uri
 	def playTrack = false
+    def restoreVolume = true
 	def eventTime = new Date().time
 	def track = device.currentState("trackData")?.jsonValue
 	def currentVolume = device.currentState("level")?.integerValue
@@ -531,19 +535,20 @@ log.trace uri
             break
 		case 3:
 			track = newTrack
+            restoreVolume = false
 			playTrack = !track?.uri?.startsWith("http://127.0.0.1") ? true : false
             break
 	}
-	if( !(currentDoNotDisturb  == "on_playing" && currentStatus == "playing" ) && !(currentDoNotDisturb  == "off_playing" && currentStatus != "playing" ) && currentDoNotDisturb != "on"  && eventTime > state.secureEventTime ?:0){
+	if( !(currentDoNotDisturb  == "on_playing" && currentStatus == "playing" ) && !(currentDoNotDisturb  == "off_playing" && currentStatus != "playing" ) && currentDoNotDisturb != "on"  ){//&& eventTime > state.secureEventTime ?:0
 		if (uri){
-			uri = uri.replace("https:","http:")
+			uri = cleanUri(uri)
             uri = uri +  ( uri.contains("?") ? "&":"?") + "ts=$eventTime"
 
             result << mediaRendererAction("Stop")
             result << delayAction(1000 + actionsDelayTime)
             
 
-            if (level) {
+            if (level && (currentVolume != level )) {
                 //if(actionsDelayTime > 0){result << delayAction(actionsDelayTime)}
                 result << setVolume(level)
 				result << delayAction(2200 + actionsDelayTime)
@@ -570,9 +575,9 @@ log.trace uri
             result << mediaRendererAction("Stop")
             result << delayAction(1000 + actionsDelayTime)
 
-            if (level) {
+            if (level && restoreVolume ) {
                 result << setVolume(currentVolume)
-				result << delayAction(2200 + actionsDelayTime)
+                result << delayAction(2200 + actionsDelayTime)
 			}
             if (currentPlayMode != "NORMAL") {
                 result << setPlayMode(currentPlayMode)
@@ -601,15 +606,15 @@ log.trace uri
 }
 
 def playTextAndResume(text, volume=null){
-	def sound = textToSpeech(text)
+	def sound = externalTTS ? textToSpeechT(text) : textToSpeech(text)
 	playByMode(sound.uri, Math.max((sound.duration as Integer),1), volume, null, 1)
 }
 def playTextAndRestore(text, volume=null){
-	def sound = textToSpeech(text)
+	def sound = externalTTS ? textToSpeechT(text) : textToSpeech(text)
 	playByMode(sound.uri, Math.max((sound.duration as Integer),1), volume, null, 2)
 }
 def playTextAndTrack(text, trackData, volume=null){
-	def sound = textToSpeech(text)
+	def sound = externalTTS ? textToSpeechT(text) : textToSpeech(text)
 	playByMode(sound.uri, Math.max((sound.duration as Integer),1), volume, trackData, 3)
 }
 def playTrackAndResume(uri, duration, volume=null) {
@@ -627,9 +632,13 @@ def playTrackAtVolume(String uri, volume) {
 }
 
 def playTrack(String uri, metaData="") {
-	def result = []
+    def actionsDelayTime =  actionsDelay ? (actionsDelay as Integer) * 1000 :0
+    def result = []
+
+    log.trace "setTrack"
     result << setTrack(uri, metaData)
-	result << mediaRendererAction("Play")
+    //result << delayAction(2000 + actionsDelayTime)
+    result << mediaRendererAction("Play")
 	result.flatten()
 }
 
@@ -647,12 +656,14 @@ def setTrack(Map trackData) {
 def setTrack(String uri, metaData="")
 {
 	metaData = metaData?:"<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\"><item id=\"1\" parentID=\"1\" restricted=\"1\"><upnp:class>object.item.audioItem.musicTrack</upnp:class><upnp:album>SmartThings Catalog</upnp:album><upnp:artist>SmartThings</upnp:artist><upnp:albumArtURI>https://graph.api.smartthings.com/api/devices/icons/st.Entertainment.entertainment2-icn?displaySize=2x</upnp:albumArtURI><dc:title>SmartThings Message</dc:title><res protocolInfo=\"http-get:*:audio/mpeg:DLNA.ORG_PN=MP3;DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01500000000000000000000000000000\" >${groovy.xml.XmlUtil.escapeXml(uri)} </res></item> </DIDL-Lite>"
-	mediaRendererAction("SetAVTransportURI", [InstanceID:0, CurrentURI:uri, CurrentURIMetaData:metaData])
+    mediaRendererAction("SetAVTransportURI", [InstanceID:0, CurrentURI:cleanUri(uri), CurrentURIMetaData:cleanUri(metaData)])
 }
 
 def resumeTrack(Map trackData = null) {
 	def result = []
+    def actionsDelayTime =  actionsDelay ? (actionsDelay as Integer) * 1000 :0
     result << restoreTrack(trackData)
+    result << delayAction(2000 + actionsDelayTime)
 	result << mediaRendererAction("Play")
 	result.flatten()
 }
@@ -664,7 +675,7 @@ def restoreTrack(Map trackData = null) {
 		data = device.currentState("trackData")?.jsonValue
 	}
 	if (data) {
-		result << mediaRendererAction("SetAVTransportURI", [InstanceID:0, CurrentURI:data.uri, CurrentURIMetaData:data.metaData])
+		result << mediaRendererAction("SetAVTransportURI", [InstanceID:0, CurrentURI:cleanUri(data.uri), CurrentURIMetaData:cleanUri(data.metaData)])
 	}
 	else {
 		log.warn "Previous track data not found"
@@ -678,7 +689,7 @@ def playText(String msg) {
 }
 
 def setText(String msg) {
-	def sound = textToSpeech(msg)
+	def sound = externalTTS ? textToSpeechT(msg) : textToSpeech(msg)
 	setTrack(sound.uri)
 }
 
@@ -721,7 +732,7 @@ def getPlayMode()
 }
 def getCurrentMedia()
 {
-	mediaRendererAction("GetPositionInfo", [InstanceID:0, Channel:"Master"])
+	mediaRendererAction("GetPositionInfo", [InstanceID:0])
 }
 
 def getCurrentStatus() //transport info
@@ -871,17 +882,18 @@ private hex(value, width=2) {
 	}
 	s
 }
+private cleanUri(uri) {
+	if (uri){
+        uri = uri.replace("https:","http:")
+        uri = uri.replace("x-rincon-mp3radio:","http:")
+    }
+    return uri
+}
 
 private textToSpeechT(message){
-    if (message) {
-       
-       try {
-           	textToSpeech(message)
-        }
-        catch (e) {
-        	[uri: "http://www.translate.google.com/translate_tts?tl=en&client=t&q=" + URLEncoder.encode(message, "UTF-8") +"&", duration: "${Math.max(Math.round(message.length()/8),2)}"]
-        }
+	if (message) {
+	    [uri: "x-rincon-mp3radio://www.translate.google.com/translate_tts?tl=en&client=t&q=" + URLEncoder.encode(message, "UTF-8").replaceAll(/\+/,'%20') +"&sf=//s3.amazonaws.com/smartapp-", duration: "${5 + Math.max(Math.round(message.length()/12),2)}"]
     }else{
-    	 [uri: "http://www.translate.google.com/translate_tts?tl=en&client=t&q=" + URLEncoder.encode("You selected the Text to Speach Function but did not enter a Message", "UTF-8") +"&", duration: "10"]
+    	[uri: "x-rincon-mp3radio://www.translate.google.com/translate_tts?tl=en&client=t&q=" + URLEncoder.encode("You selected the Text to Speach Function but did not enter a Message", "UTF-8").replaceAll(/\+/,'%20') +"&sf=//s3.amazonaws.com/smartapp-", duration: "10"]
     }
 }
