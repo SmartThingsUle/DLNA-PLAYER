@@ -1,5 +1,5 @@
 # DLNA-PLAYER 
-Generic DLNA Player to Smartthings v 1.9.0
+Generic DLNA Player to Smartthings v 1.9.5
 
 Its necessary to update MediaRenderer Connect and Dlna-Player
 You must uninstall all your MediaRenderes and install again after update.
@@ -60,6 +60,9 @@ Get back to main window and you should have the new players in your things secti
 
 Revision History
 ----------------
+**Version 1.9.5
+* protocol fix compatible con x-rincon-mp3radio protocol needed by sonos to play external sources
+
 **Version 1.9.1
 * External TTS Function, This is a temporal fix, whe hope Smarthings fix the TTS function, Once Smartthings fix the function , you must to return to normal media player
 
