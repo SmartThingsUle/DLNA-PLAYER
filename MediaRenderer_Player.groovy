@@ -136,7 +136,6 @@ def parse(description) {
     def results = []
 	try {
 		def msg = parseLanMessage(description)
-        //log.debug "msg $msg"
         if (msg.headers)
 		{
 			def hdr = msg.header.split('\n')[0]
@@ -263,7 +262,7 @@ def parse(description) {
 							metaData = metaData.contains("pxn:ContentSourceType") &&  !metaData.contains("xmlns:pxn") ? metaData.replace("<DIDL-Lite"," <DIDL-Lite xmlns:pxn=\"urn:schemas-panasonic-com:pxn\"") : metaData
                             metaData = metaData != "<DIDL-Lite></DIDL-Lite><DIDL-Lite></DIDL-Lite>" ? metaData : null 
                             def parsedMetaData
-                            //log.debug "metaData response $metaData"							
+				
                             try {
 								if (metaData){
                                 	parsedMetaData = parseXml(metaData)
@@ -517,6 +516,7 @@ def switchDoNotDisturb(){
 
 
 def playByMode(uri, duration, volume,newTrack,mode) {
+
 	def playTrack = false
     def restoreVolume = true
 	def eventTime = new Date().time
@@ -559,7 +559,6 @@ def playByMode(uri, duration, volume,newTrack,mode) {
 			}
 			result << setTrack(uri)
 			result << delayAction(2000 + actionsDelayTime)
-
 			result << mediaRendererAction("Play")
 			if (duration < 2){
 				def matcher = uri =~ /[^\/]+.mp3/
@@ -593,6 +592,9 @@ def playByMode(uri, duration, volume,newTrack,mode) {
 				}else{
                     result << mediaRendererAction("Next")
 				}
+                if (!state.lastChange){
+                	result << getCurrentMedia()
+            	}
 			}else{
 				result << mediaRendererAction("Stop")
 			}
@@ -632,13 +634,19 @@ def playTrackAtVolume(String uri, volume) {
 }
 
 def playTrack(String uri, metaData="") {
-    def actionsDelayTime =  actionsDelay ? (actionsDelay as Integer) * 1000 :0
+	log.trace "uri ${cleanUri(uri)}, metaData ${cleanUri(metaData)}"
+        def actionsDelayTime =  actionsDelay ? (actionsDelay as Integer) * 1000 :0
     def result = []
 
-    log.trace "setTrack"
+    result << mediaRendererAction("Stop")
+    result << delayAction(1000 + actionsDelayTime)
     result << setTrack(uri, metaData)
-    //result << delayAction(2000 + actionsDelayTime)
+    result << delayAction(2000 + actionsDelayTime)
     result << mediaRendererAction("Play")
+    if (!state.lastChange){
+    	result << delayAction(2000 + actionsDelayTime)
+    	result << getCurrentMedia()
+    }
 	result.flatten()
 }
 
@@ -646,6 +654,9 @@ def playTrack(Map trackData) {
 	def result = []
     result << setTrack(trackData)
 	result << mediaRendererAction("Play")
+    if (!state.lastChange){
+        result << getCurrentMedia()
+    }
 	result.flatten()
 }
 
