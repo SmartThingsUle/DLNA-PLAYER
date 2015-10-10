@@ -417,7 +417,9 @@ private loadText() {
 			 state.sound = externalTTS ? textToSpeechT("You selected the sound option but did not enter a sound in the $app.label Smart App") : textToSpeech("You selected the sound option but did not enter a sound in the $app.label Smart App")
 			break;
 	}
-    state.soundMessage = externalTTS ? textToSpeechT(message instanceof List ? message[0] : message) :  textToSpeech(message instanceof List ? message[0] : message)
+	if(message){
+	    state.soundMessage = externalTTS ? textToSpeechT(message instanceof List ? message[0] : message) :  textToSpeech(message instanceof List ? message[0] : message)
+	}
 }
 
 private textToSpeechT(message){
