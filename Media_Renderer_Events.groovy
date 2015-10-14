@@ -14,7 +14,7 @@
  *
  *  Author: SmartThings-Ule
  *  Date: 2015-10-09
- *  v 1.1.0
+ *  v 1.1.1.
  *  To use RadioTunes stations, you mus get a free account and set the key in the app
  *  Once you have an Radio Tunes account, go to http://www.radiotunes.com/settings and select "Hardware Player" and "Good (96k MP3)"
  *  You going to see a url like this http://listen.radiotunes.com/public3/hit00s.pls?listen_key=xxxxxxxxxxxxxxxxx
@@ -83,7 +83,7 @@ def mainPage() {
 			ifUnset "timeOfDay", "time", title: "At a Scheduled Time", required: false
 		}
         def radioTunesOptions = ["00's Hits","00's R&B","60's Rock","80's Alt & New Wave","80's Dance","80's Rock Hits","90's Hits","90's R&B","Alternative Rock","Ambient","American Songbook","Baroque Period","Bebop Jazz","Best of the 60's","Best of the 80's","Blues Rock","Bossa Nova","Café de Paris","Chillout","Classic Hip-Hop","Classic Motown","Classic Rock","Classical Guitar","Classical Period","Classical Piano Trios","Club Bollywood","Contemporary Christian","Country","DaTempo Lounge","Dance Hits","Dave Koz & Friends","Disco Party","Downtempo Lounge","Dreamscapes","EDM Fest","EuroDance","Halloween Channel","Hard Rock","Hit 70's","Indie Rock","Jazz Classics","Jpop","Lounge","Love Music","Meditation","Mellow Jazz","Mellow Smooth Jazz","Metal","Modern Blues","Modern Rock","Mostly Classical","Movie Soundtracks","Mozart","Nature","New Age","Old School Funk & Soul","Oldies","Piano Jazz","Pop Rock","Reggaeton","Relaxation","Relaxing Ambient Piano","Romantic Period","Romantica","Roots Reggae","Salsa","Slow Jams","Smooth Bossa Nova","Smooth Jazz","Smooth Jazz 24'7","Smooth Lounge","Soft Rock","Solo Piano","Top Hits","Uptempo Smooth Jazz","Urban Hits","Urban Pop Hits","Vocal Chillout","Vocal Lounge","Vocal New Age","Vocal Smooth Jazz","World"]
-	section{
+		section{
             input "actionType", "enum", title: "Action?", required: true, defaultValue: "Message",submitOnChange:true, options: ["Message","Sound","Track","Radio Tunes","Multiple Radio Tunes"]
             input "message","text",title:"Play this message?", required:actionType == "Message"? true:flase, multiple: false
         }
@@ -92,12 +92,12 @@ def mainPage() {
         }
         section{  
         	input "sound", "enum", title: "Play this Sound?", required: actionType == "Sound"? true:flase, defaultValue: "Bell 1", options: ["Bell 1","Bell 2","Dogs Barking","Fire Alarm","Piano","Lightsaber"]
-		input "song","enum",title:"Play this track", required:actionType == "Track"? true:flase, multiple: false, options: songOptions()
+			input "song","enum",title:"Play this track", required:actionType == "Track"? true:flase, multiple: false, options: songOptions()
 	        input "radioTunes", "enum", title: "Play this RadioTunes Station?", required:actionType == "Radio Tunes"? true:flase, defaultValue: "hit00s", options: radioTunesOptions
-            	input "radioTunesM", "enum", title: "Play Random RadioTunes Station?", required: actionType == "Multiple Radio Tunes"? true:flase, multiple:true, options: radioTunesOptions
+            input "radioTunesM", "enum", title: "Play Random RadioTunes Station?", required: actionType == "Multiple Radio Tunes"? true:flase, multiple:true, options: radioTunesOptions
 		}
         section("Radio Tunes settings", hideable: (actionType == "Radio Tunes" || actionType == "Multiple Radio Tunes") && !RTKey ? flase:true, hidden: true) {
-        	input "RTKey","text",title:"Radio Tunes Key?", required:actionType == "Radio Tunes" ? true:flase, defaultValue: ""
+        	input "RTKey","text",title:"Radio Tunes Key?", required:actionType == "Radio Tunes" || "Multiple Radio Tunes" ? true:flase, defaultValue: ""
             input "RTServer", "enum", title: "Radio Tunes Server?", required: true, defaultValue: "5", options: ["1","2","3","4","5","6","7","8"]
             input "RTMode", "enum", title: "Multiple Mode?", required: true, defaultValue: "Shuffle", options: ["Loop","Random","Shuffle"]
         }
@@ -239,7 +239,9 @@ def subscribeToEvents() {
         state.radioTunesM = radioTunesM.sort()
     	state.lastRTS = state.radioTunesM[-1]
     }
+    
     log.debug "state.sound : $state.sound"
+    
 }
 
 def eventHandler(evt) {
@@ -431,7 +433,9 @@ private loadText() {
 			 state.sound = externalTTS ? textToSpeechT("You selected the sound option but did not enter a sound in the $app.label Smart App") : textToSpeech("You selected the sound option but did not enter a sound in the $app.label Smart App")
 			break;
 	}
-    state.soundMessage = externalTTS ? textToSpeechT(message instanceof List ? message[0] : message) :  textToSpeech(message instanceof List ? message[0] : message)
+    if (actionType == "Message"){
+    	state.soundMessage = externalTTS ? textToSpeechT(message instanceof List ? message[0] : message) :  textToSpeech(message instanceof List ? message[0] : message)
+    }
 }
 
 private textToSpeechT(message){
