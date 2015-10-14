@@ -8,9 +8,9 @@ The **MediaRenderer Events** SmartApp allows you play messages, sounds, Tracks a
 
 More than 80 music station, with several genres
 
-*If you like this app, please consider supporting its development by making a
-donation via PayPal.*
+*If you like this app, please consider supporting its development by making a donation via PayPal.*
 
+[![PayPal](https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=A6XBY99S5FECL)
 
 ### Installation
 
@@ -35,7 +35,7 @@ for more information.
 5. You can add your key in line 100 of Mediarenderer events SmartApp  to avoid writing by the app or input in the smartapp defaultValue: ""
 
 
-
+MediaRenderer Connect
 
 ### Revision History
 
