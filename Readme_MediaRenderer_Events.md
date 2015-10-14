@@ -32,7 +32,7 @@ for more information.
 
 4. Once you have an Radio Tunes account, go to http://www.radiotunes.com/settings and select "Hardware Player" and "Good (96k MP3)" , You going to see a url like this http://listen.radiotunes.com/public3/hit00s.pls?listen_key=xxxxxxxxxxxxxxxxx
 
-5. You can add your key in line 99 of Mediarenderer events SmartApp  to avoid writing by the app or input in the smartapp
+5. You can add your key in line 100 of Mediarenderer events SmartApp  to avoid writing by the app or input in the smartapp defaultValue: ""
 
 
 
