@@ -21,7 +21,7 @@ in the "From Code" tab. Please refer to the
 [SmartThings Developer Documentation](http://docs.smartthings.com/en/latest/index.html)
 for more information.
 
-2.Self-publish MadiaRenderer player Smart type by creating a new Device Type or Updating in the
+2. Self-publish MadiaRenderer player Smart type by creating a new Device Type or Updating in the
 [SmartThings IDE](https://graph.api.smartthings.com/ide/apps) and pasting the
 [source code](https://raw.githubusercontent.com/SmartThingsUle/DLNA-PLAYER/master/MediaRenderer_Player.groovy)
 in the "From Code" tab. Please refer to the
@@ -38,6 +38,11 @@ for more information.
 
 
 ### Revision History
+
+**Version 1.1.0.**
+
+* Multiple Radio Station Added, Mode:  Loop, Random, Shuffle
+* Now you can select your favorites radio strations and play a different station each time an event is detected.
 
 **Version 1.0.0. Released 10/09/2015**
 
