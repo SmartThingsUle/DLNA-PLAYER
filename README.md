@@ -1,8 +1,47 @@
 # DLNA-PLAYER 
 Generic DLNA Player to Smartthings v 1.9.5
 
-Its necessary to update MediaRenderer Connect and Dlna-Player
-You must uninstall all your MediaRenderes and install again after update.
+The **DLNA PLAYER** Device Type allows to [SmartThings](http://www.smartthings.com) to send messages and music to almost any DLNA Media Renderer Device
+
+Currently there are more than 20 devices confirmed and more than 30 waiting confirmation [List](https://community.smartthings.com/t/working-speakers-20-devices-confirmed-31-waiting-confirmation-last-addition-heos-7-help-us-to-increase-the-list/12107/)
+
+
+The DLNA Player Controls Interface
+
+1. Play
+2. Stop
+3. Next 
+4. Forward
+5. Mute/Unmute
+6. Control Volume
+7. Show media description
+8. Mode: Msg Enabled, Msg Disabled, Msg On Stopped, Msg on Playing
+
+
+
+Its compatible with official smartapps made for sonos speakers
+
+ 1. Music & Sounds : Sonos Control by SmartThings Play or pause your Sonos when certain actions take place in your home.
+ 2. Sonos Mood Music by SmartThings : Plays a selected song or station. 
+ 3. Sonos Notify with Sound by SmartThings : Play a sound or custom message through your Sonos when the mode changes or other events occur.
+ 4. Sonos Weather Forecast by SmartThings : Play a weather report through your Sonos when the mode changes or other events occur
+ 5. Talking Alarm Clock by Michael Struck : Control up to 4 waking schedules using a Sonos speaker as an alarm.
+ 
+Unoficial 
+
+Its compatible with  unofficial smartapps made music and messages
+
+1. Media Renderer Events : Play a custom message, sound or RadioTunes station through your Media Renderer when the mode changes or other events occur.
+2. ...
+
+
+*If you like this app, please consider supporting its development by making a
+donation via PayPal.*
+
+[![PayPal](https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=A6XBY99S5FECL)
+
+The **MediaRenderer Connect** search for the Media Renderers devices in your network.
+
 
 
 **Installing The MediaRenderer Connect**
@@ -61,10 +100,10 @@ Get back to main window and you should have the new players in your things secti
 Revision History
 ----------------
 **Version 1.9.5
-* protocol fix compatible con x-rincon-mp3radio protocol needed by sonos to play external sources
+* protocol fix compatible con x-rincon-mp3radio needed by sonos to play external sources
 
-**Version 1.9.1
-* External TTS Function, This is a temporal fix, whe hope Smarthings fix the TTS function, Once Smartthings fix the function , you must to return to normal media player
+**Version 1.9.2
+* External TTS Function, allows to use an alternative of TTS build in Function
 
 **Version 1.9.0
 * No device present detection
