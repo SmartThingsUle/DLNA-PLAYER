@@ -5,7 +5,7 @@
  */
  
 definition(
-	name: "MediaRenderer (Connect)",
+	name: "MediaRender (Connect)",
 	namespace: "mujica",
 	author: "SmartThings - Ulises Mujica",
 	description: "Allows you to control your Media Renderer from the SmartThings app. Perform basic functions like play, pause, stop, change track, and check artist and song name from the Things screen.",
