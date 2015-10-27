@@ -220,11 +220,16 @@ def locationHandler(evt) {
 	def description = evt.description
 	def hub = evt?.hubId
 	def parsedEvent = parseEventMessage(description)
-    def msg = parseLanMessage(description)
-	childDevices*.each { childDevice ->
-        if(childDevice.getDataValue('subscriptionId') == ((msg?.headers?.sid ?:"") - "uuid:")|| childDevice.getDataValue('subscriptionId1') == ((msg?.headers?.sid ?:"") - "uuid:")){
-        	childDevice.parse(description)
-        }
+	def msg = parseLanMessage(description)
+    
+	if (msg?.headers?.sid)
+	{
+		childDevices*.each { childDevice ->
+		    if(childDevice.getDataValue('subscriptionId') == ((msg?.headers?.sid ?:"") - "uuid:")|| childDevice.getDataValue('subscriptionId1') == ((msg?.headers?.sid ?:"") - "uuid:")){
+		       log.trace "gotcha"
+		       childDevice.parse(description)
+		    }
+		}
 	}
     
     
