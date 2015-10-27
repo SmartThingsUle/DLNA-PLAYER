@@ -5,7 +5,7 @@
  */
  
 definition(
-	name: "MediaRender (Connect)",
+	name: "MediaRenderer (Connect)",
 	namespace: "mujica",
 	author: "SmartThings - Ulises Mujica",
 	description: "Allows you to control your Media Renderer from the SmartThings app. Perform basic functions like play, pause, stop, change track, and check artist and song name from the Things screen.",
@@ -226,7 +226,6 @@ def locationHandler(evt) {
 	{
 		childDevices*.each { childDevice ->
 		    if(childDevice.getDataValue('subscriptionId') == ((msg?.headers?.sid ?:"") - "uuid:")|| childDevice.getDataValue('subscriptionId1') == ((msg?.headers?.sid ?:"") - "uuid:")){
-		       log.trace "gotcha"
 		       childDevice.parse(description)
 		    }
 		}
