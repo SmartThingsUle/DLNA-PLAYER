@@ -1,15 +1,16 @@
 /**
- *  MediaRenderer Service Manager v 1.9.3
+ *  MediaRenderer Service Manager v 2.0.0
  *
  *  Author: SmartThings - Ulises Mujica 
  */
  
 definition(
-	name: "MediaRender (Connect)",
+	name: "MediaRenderer (Connect)",
 	namespace: "mujica",
 	author: "SmartThings - Ulises Mujica",
-	description: "Allows you to control your Media Render from the SmartThings app. Perform basic functions like play, pause, stop, change track, and check artist and song name from the Things screen.",
+	description: "Allows you to control your Media Renderer from the SmartThings app. Perform basic functions like play, pause, stop, change track, and check artist and song name from the Things screen.",
 	category: "SmartThings Labs",
+	singleInstance: true,
 	iconUrl: "https://graph.api.smartthings.com/api/devices/icons/st.secondary.smartapps-tile?displaySize=2x",
     iconX2Url: "https://graph.api.smartthings.com/api/devices/icons/st.secondary.smartapps-tile?displaySize=2x"
 )
@@ -20,7 +21,7 @@ preferences {
             href(name: "discover",title: "Discovery process",required: false,page: "mediaRendererDiscovery",description: "tap to start searching")
         }
         section("Options", hideable: true, hidden: true) {
-            input("refreshMRInterval", "number", title:"Enter refresh players interval (min)",defaultValue:"5", required:false)
+            input("refreshMRInterval", "number", title:"Enter refresh players interval (min)",defaultValue:"15", required:false)
         }
     }
     page(name: "mediaRendererDiscovery", title:"Discovery Started!")
@@ -28,9 +29,12 @@ preferences {
 
 def mediaRendererDiscovery()
 {
-	if(canInstallLabs())
+    log.trace "mediaRendererDiscovery() state.subscribe ${state.subscribe}"
+    if(canInstallLabs())
 	{
-		int mediaRendererRefreshCount = !state.mediaRendererRefreshCount ? 0 : state.mediaRendererRefreshCount as int
+		
+        
+        int mediaRendererRefreshCount = !state.mediaRendererRefreshCount ? 0 : state.mediaRendererRefreshCount as int
 		state.mediaRendererRefreshCount = mediaRendererRefreshCount + 1
 		def refreshInterval = 5
 
@@ -88,11 +92,11 @@ private verifyMediaRendererPlayer() {
 }
 
 private verifyMediaRenderer(String deviceNetworkId, String ssdpPath) {
-	String ip = getHostAddress(deviceNetworkId)
+    String ip = getHostAddress(deviceNetworkId)
 	if(!ssdpPath){
 		ssdpPath = "/"
 	}
-
+	log.trace "verifyMediaRenderer($deviceNetworkId, $ssdpPath, $ip)"
 	sendHubCommand(new physicalgraph.device.HubAction("""GET $ssdpPath HTTP/1.1\r\nHOST: $ip\r\n\r\n""", physicalgraph.device.Protocol.LAN, "${deviceNetworkId}"))
 }
 
@@ -118,11 +122,26 @@ def getVerifiedMediaRendererPlayer()
 }
 
 def installed() {
-	initialize()}
+	log.trace "installed()"
+	//initialize()
+}
 
 def updated() {
-	unschedule()
-	initialize()
+	log.trace "updated()"
+
+   
+	if (selectedMediaRenderer) {
+		addMediaRenderer()
+	}
+    
+	unsubscribe()
+	state.subscribe = false
+    unschedule()
+    scheduleTimer()
+    scheduleActions()
+
+    refreshAll()
+    syncDevices()
 }
 
 def uninstalled() {
@@ -134,48 +153,51 @@ def uninstalled() {
 
 def initialize() {
 	// remove location subscription aftwards
-	unsubscribe()
-	state.subscribe = false
-
-	unschedule()
-
-	if (selectedMediaRenderer) {
-		addMediaRenderer()
-	}
-    scheduleActions()
-    scheduledRefreshHandler()
+    log.trace "initialize()"
+    //scheduledRefreshHandler()
 }
 
-def scheduledRefreshHandler() {
-	refreshAll()
+
+def scheduledRefreshHandler(){
+
+}
+
+def scheduledTimerHandler() {
+    timerAll()
 }
 
 def scheduledActionsHandler() {
     syncDevices()
-	runIn(60, scheduledRefreshHandler) 
+	//runIn(60, scheduledRefreshHandler) 
+}
 
+private scheduleTimer() {
+    def cron = "0 0/3 * * * ?"
+   	schedule(cron, scheduledTimerHandler)
 }
 
 private scheduleActions() {
-	def minutes = Math.max(settings.refreshMRInterval.toInteger(),3)
+    def minutes = Math.max(settings.refreshMRInterval.toInteger(),1)
     def cron = "0 0/${minutes} * * * ?"
    	schedule(cron, scheduledActionsHandler)
 }
-
-
 
 private syncDevices() {
 	log.debug "syncDevices()"
 	if(!state.subscribe) {
 		subscribe(location, null, locationHandler, [filterEvents:false])
+        log.trace "subscribe($location, null, locationHandler, [filterEvents:false])"
 		state.subscribe = true
 	}
 
 	discoverMediaRenderers()
 }
 
+private timerAll(){
+	childDevices*.poll()
+}
+
 private refreshAll(){
-	log.trace "refresh all"
 	childDevices*.refresh()
 }
 
@@ -184,11 +206,9 @@ def addMediaRenderer() {
 	def runSubscribe = false
 	selectedMediaRenderer.each { dni ->
 		def d = getChildDevice(dni)
-		log.trace "dni $dni"
 		if(!d) {
 			def newPlayer = players.find { (it.value.ip + ":" + it.value.port) == dni }
 			if (newPlayer){
-				//MediaRenderer
 				d = addChildDevice("mujica", "DLNA Player", dni, newPlayer?.value.hub, [label:"${newPlayer?.value.name} Speaker","data":["model":newPlayer?.value.model,"avtcurl":newPlayer?.value.avtcurl,"avteurl":newPlayer?.value.avteurl,"rccurl":newPlayer?.value.rccurl,"rceurl":newPlayer?.value.rceurl,"udn":newPlayer?.value.udn,"dni":dni]])
 			}
 			runSubscribe = true
@@ -201,6 +221,13 @@ def locationHandler(evt) {
 	def hub = evt?.hubId
 	def parsedEvent = parseEventMessage(description)
     def msg = parseLanMessage(description)
+	childDevices*.each { childDevice ->
+        if(childDevice.getDataValue('subscriptionId') == ((msg?.headers?.sid ?:"") - "uuid:")|| childDevice.getDataValue('subscriptionId1') == ((msg?.headers?.sid ?:"") - "uuid:")){
+        	childDevice.parse(description)
+        }
+	}
+    
+    
 	parsedEvent << ["hub":hub]
 
 	if (parsedEvent?.ssdpTerm?.contains("urn:schemas-upnp-org:device:MediaRenderer:1"))
@@ -229,7 +256,9 @@ def locationHandler(evt) {
                     if (parsedEvent.ssdpUSN.toString().contains(it.getDataValue("udn"))) {
 						it.setDeviceNetworkId((parsedEvent.ip + ":" + parsedEvent.port)) //could error if device with same dni already exists
 						it.updateDataValue("dni", (parsedEvent.ip + ":" + parsedEvent.port))
+                        it.refresh()
 						log.trace "Updated Device IP"
+
 					}
 				}
 			}
@@ -242,20 +271,18 @@ def locationHandler(evt) {
 
 		def type = (headerString =~ /Content-Type:.*/) ? (headerString =~ /Content-Type:.*/)[0] : null
 		def body
+        def device
 		if (bodyString?.contains("xml"))
 		{ // description.xml response (application/xml)
 			body = new XmlSlurper().parseText(bodyString)
-
+			log.trace "MEDIARENDER RESPONSES ${body?.device?.modelName?.text()}"
 			// Avoid add sonos devices	
-            //log.debug "${body.encodeAsHTML()}"
-           
             device = body?.device
             body?.device?.deviceList?.device?.each{
                 if (it?.deviceType?.text().contains("urn:schemas-upnp-org:device:MediaRenderer:1")) {
                     device = it
                 }
             }
-            
 			if ( !device?.modelName?.text().startsWith("Sonos") && device?.deviceType?.text().contains("urn:schemas-upnp-org:device:MediaRenderer:1"))
 			{
 				def avtcurl = ""
@@ -263,6 +290,7 @@ def locationHandler(evt) {
 				def rccurl = ""
 				def rceurl = ""
          
+			
 				device?.serviceList?.service?.each{
 				  if (it?.serviceType?.text().contains("AVTransport")) {
 						avtcurl = it?.controlURL?.text().startsWith("/")? it?.controlURL.text() : "/" + it?.controlURL.text()
@@ -273,7 +301,7 @@ def locationHandler(evt) {
 						rceurl = it?.eventSubURL?.text().startsWith("/")? it?.eventSubURL?.text() : "/" + it?.eventSubURL?.text()
 					}
 				}
-				
+                
 				
 				def mediaRenderers = getMediaRendererPlayer()
 				def player = mediaRenderers.find {it?.key?.contains(device?.UDN?.text())}
@@ -288,9 +316,7 @@ def locationHandler(evt) {
 		{ //(application/json)
 			body = new groovy.json.JsonSlurper().parseText(bodyString)
 		}
-		
 	}
-	
 }
 
 private def parseEventMessage(Map event) {
@@ -361,6 +387,12 @@ private def parseEventMessage(String description) {
 		}
 	}
 
+	if (event.devicetype == "04" && event.ssdpPath =~ /[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}/ && !event.ssdpUSN && !event.ssdpTerm){
+        def matcher = event.ssdpPath =~ /[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}/ 
+        def ssdpUSN = matcher[0]
+        event.ssdpUSN = "uuid:$ssdpUSN::urn:schemas-upnp-org:device:MediaRenderer:1"
+        event.ssdpTerm = "urn:schemas-upnp-org:device:MediaRenderer:1"
+    }
 	event
 }
 
