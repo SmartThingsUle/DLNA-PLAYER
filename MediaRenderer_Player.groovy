@@ -1,5 +1,5 @@
 /** 
- *  MediaRenderer Player v1.9.5
+ *  MediaRenderer Player v2.0.0
  *
  *  Author: SmartThings - Ulises Mujica (Ule)
  *
@@ -7,8 +7,9 @@
 
 
 preferences {
-		input(name: "customDelay", type: "enum", title: "Delay before msg (seconds)", options: ["0","1","2","3","4","5"])
-		input(name: "actionsDelay", type: "enum", title: "Delay between actions (seconds)", options: ["0","1","2","3"])
+        input(name: "customDelay", type: "enum", title: "Delay before msg (seconds)", options: ["0","1","2","3","4","5"])
+        input(name: "actionsDelay", type: "enum", title: "Delay between actions (seconds)", options: ["0","1","2","3"])
+        input(name: "refreshFrequency", type: "enum", title: "Refresh frequency (minutes)", options:[0:"Auto",3:"3",5:"5",10:"10",15:"15",20:"20"])
         input "externalTTS", "bool", title: "Use External Text to Speech", required: false, defaultValue: false
 }
 metadata {
@@ -102,8 +103,8 @@ metadata {
 
 	
 	// Row 5
-	standardTile("refresh", "device.status", inactiveLabel: false, decoration: "flat") {
-		state "default", label:"", action:"refresh.refresh", icon:"st.secondary.refresh", backgroundColor:"#ffffff"
+	standardTile("refreshPlayer", "device.status", inactiveLabel: false, decoration: "flat") {
+		state "default", label:"", action:"refresh", icon:"st.secondary.refresh", backgroundColor:"#ffffff"
 	}
 	standardTile("doNotDisturb", "device.doNotDisturb", width: 1, height: 1, decoration: "flat", canChangeIcon: true) {
 		state "off", label:"MSG Enabled", action:"switchDoNotDisturb", icon:"st.alarm.beep.beep",nextState:"on"
@@ -111,9 +112,7 @@ metadata {
         state "on_playing", label:"MSG on Stopped", action:"switchDoNotDisturb", icon:"st.alarm.beep.beep",nextState:"off_playing"
         state "off_playing", label:"MSG on Playing", action:"switchDoNotDisturb", icon:"st.alarm.beep.beep",nextState:"off"
 	}
-	standardTile("unsubscribe", "device.status", width: 1, height: 1, decoration: "flat") {
-		state "previous", label:'Unsubscribe', action:"unsubscribe", backgroundColor:"#ffffff"
-	}
+
 	
 
 
@@ -124,10 +123,7 @@ metadata {
 		"status","stop","mute",
 		"levelSliderControl",
 		"currentSong",
-		"refresh", "doNotDisturb"
-		
-		
-		//,"unsubscribe"
+		"refreshPlayer", "doNotDisturb"
 	])
 }
 
@@ -144,18 +140,15 @@ def parse(description) {
 			}
 
 			def sid = ""
-			if (msg.headers["SID"])
+			if (msg.headers["sid"])
 			{
-				sid = msg.headers["SID"]
+				sid = msg.headers["sid"]
 				sid -= "uuid:"
 				sid = sid.trim()
-
 			}
 
-			if (!msg.body) {
-				if (sid) {
-					updateSid(sid)
-				}
+			if (!msg.body && msg.headers["timeout"] && sid ) {
+				updateSid(sid)
 			}
 			else if (msg.xml) {
 
@@ -190,13 +183,16 @@ def parse(description) {
 						sendEvent(name: "playMode", value: currentPlayMode, description: "$device.displayName Play Mode is $currentPlayMode")
 					}
 				}
-
+				node = msg.xml.Body.GetPositionInfoResponse
+				if (node.size()) {
+                	
+				}
 				
 
 				// Process subscription update
 				node = msg.xml.property.LastChange
-				if (node?.text()?.size()>0) {
-					
+				if (node?.text()?.size()>40  && node?.text()?.contains("</") ) {
+					state.lastChange = true
 					def xml1 = parseXml(node.text())
 
 					// Play/pause status
@@ -251,8 +247,9 @@ def parse(description) {
 						state.transportUri = transportUri
 					
 						def trackMeta = xml1.InstanceID.CurrentTrackMetaData.'@val'.text()
+                        trackMeta = trackMeta == "NOT_IMPLEMENTED" ? "":trackMeta
 						def transportMeta = xml1.InstanceID.AVTransportURIMetaData.'@val'.text()
-						
+						transportMeta = transportMeta == "NOT_IMPLEMENTED" ? "":transportMeta
 
 						if (trackMeta || transportMeta) {
 							def metaDataLoad = trackMeta  ? trackMeta : transportMeta
@@ -262,7 +259,7 @@ def parse(description) {
 							metaData = metaData.contains("pxn:ContentSourceType") &&  !metaData.contains("xmlns:pxn") ? metaData.replace("<DIDL-Lite"," <DIDL-Lite xmlns:pxn=\"urn:schemas-panasonic-com:pxn\"") : metaData
                             metaData = metaData != "<DIDL-Lite></DIDL-Lite><DIDL-Lite></DIDL-Lite>" ? metaData : null 
                             def parsedMetaData
-				
+	
                             try {
 								if (metaData){
                                 	parsedMetaData = parseXml(metaData)
@@ -324,7 +321,7 @@ def parse(description) {
 									results << createEvent(name: "trackData",value: trackDataValue.encodeAsJSON(),descriptionText: currentDescription,displayed: false,isStateChange: isDataStateChange	)
 								}
 								trackDataValue.uri = uri
-								trackDataValue.station = uri?.startsWith("http://127.0.0.1")? "Unavailable-$station":(uri?.startsWith("dlna-playcontainer:")? "P.L. $station": station )
+								trackDataValue.station = uri?.startsWith("http://127.0.0.1")? "UNA-$station":(uri?.startsWith("dlna-playcontainer:")? "P.L. $station": station )
 								results << createEvent(name: "trackData",value: trackDataValue.encodeAsJSON(),descriptionText: currentDescription,displayed: false,isStateChange: isDataStateChange	)
 
                             }
@@ -368,9 +365,10 @@ def parse(description) {
 
 def installed() {
 	sendEvent(name:"model",value:getDataValue("model"),isStateChange:true)
-	def result = [delayAction(5000)]
-	result << refresh()
-	result.flatten()
+//	def result = []
+//    result << delayAction(10000)
+//	result << refresh()
+//	result.flatten()
 }
 
 def on(){
@@ -382,31 +380,40 @@ def off(){
 }
 
 def poll() {
-	refresh()
+log.trace "poll()"
+	timer()
 }
 
+def timer(){
+    def eventTime = new Date().time
+	state.gapTime = refreshFrequency > 0 ? (refreshFrequency? (refreshFrequency as Integer):0) * 60  : (parent.refreshMRInterval? (parent.refreshMRInterval as Integer):0) * 60 
+    if ((state.lastRefreshTime ?:0) + (state.lastChange ? state.gapTime * 1000 : 300000)  <=  eventTime ){
+    	refresh()
+    }
+}
 def refresh() {
-	
-	def eventTime = new Date().time
-	
-	if( eventTime > state.secureEventTime ?:0)
-	{
-		if ((state.lastRefreshTime ?: 0) > (state.lastStatusTime ?:0)){
-				sendEvent(name: "status", value: "no_device_present", data: "no_device_present", displayed: false)
-		}
-		state.lastRefreshTime = eventTime
-		log.trace "Refresh()"
+    def eventTime = new Date().time
+
+    if( eventTime > state.secureEventTime ?:0)
+    {
+        if ((state.lastRefreshTime ?: 0) > (state.lastStatusTime ?:0)){
+            sendEvent(name: "status", value: "no_device_present", data: "no_device_present", displayed: false)
+        }
+        state.lastRefreshTime = eventTime
+        log.trace "Refresh()"
         def result = []
         //result << unsubscribe()
+        //result << delayAction(10000)
         result << subscribe()
-		result << getCurrentStatus()
-		result << getVolume()
+        result << getCurrentStatus()
+        result << getVolume()
         result << getPlayMode()
-        result << getCurrentMedia()
-		result.flatten()
-	}else{
-    	log.trace "Refresh skipped"
+        //result << getCurrentMedia() 
+        result.flatten()
+    }else{
+        log.trace "Refresh skipped"
     }
+
 }
 
 def setLevel(val)
@@ -516,7 +523,6 @@ def switchDoNotDisturb(){
 
 
 def playByMode(uri, duration, volume,newTrack,mode) {
-
 	def playTrack = false
     def restoreVolume = true
 	def eventTime = new Date().time
@@ -608,15 +614,15 @@ def playByMode(uri, duration, volume,newTrack,mode) {
 }
 
 def playTextAndResume(text, volume=null){
-	def sound = externalTTS ? textToSpeechT(text) : textToSpeech(text)
+	def sound = externalTTS ? textToSpeechT(text) : safeTextToSpeech(text)
 	playByMode(sound.uri, Math.max((sound.duration as Integer),1), volume, null, 1)
 }
 def playTextAndRestore(text, volume=null){
-	def sound = externalTTS ? textToSpeechT(text) : textToSpeech(text)
+	def sound = externalTTS ? textToSpeechT(text) : safeTextToSpeech(text)
 	playByMode(sound.uri, Math.max((sound.duration as Integer),1), volume, null, 2)
 }
 def playTextAndTrack(text, trackData, volume=null){
-	def sound = externalTTS ? textToSpeechT(text) : textToSpeech(text)
+	def sound = externalTTS ? textToSpeechT(text) : safeTextToSpeech(text)
 	playByMode(sound.uri, Math.max((sound.duration as Integer),1), volume, trackData, 3)
 }
 def playTrackAndResume(uri, duration, volume=null) {
@@ -634,8 +640,7 @@ def playTrackAtVolume(String uri, volume) {
 }
 
 def playTrack(String uri, metaData="") {
-	log.trace "uri ${cleanUri(uri)}, metaData ${cleanUri(metaData)}"
-        def actionsDelayTime =  actionsDelay ? (actionsDelay as Integer) * 1000 :0
+    def actionsDelayTime =  actionsDelay ? (actionsDelay as Integer) * 1000 :0
     def result = []
 
     result << mediaRendererAction("Stop")
@@ -666,7 +671,8 @@ def setTrack(Map trackData) {
 
 def setTrack(String uri, metaData="")
 {
-	metaData = metaData?:"<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\"><item id=\"1\" parentID=\"1\" restricted=\"1\"><upnp:class>object.item.audioItem.musicTrack</upnp:class><upnp:album>SmartThings Catalog</upnp:album><upnp:artist>SmartThings</upnp:artist><upnp:albumArtURI>https://graph.api.smartthings.com/api/devices/icons/st.Entertainment.entertainment2-icn?displaySize=2x</upnp:albumArtURI><dc:title>SmartThings Message</dc:title><res protocolInfo=\"http-get:*:audio/mpeg:DLNA.ORG_PN=MP3;DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01500000000000000000000000000000\" >${groovy.xml.XmlUtil.escapeXml(uri)} </res></item> </DIDL-Lite>"
+	//metaData = metaData?:"<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\"><item id=\"1\" parentID=\"1\" restricted=\"1\"><upnp:class>object.item.audioItem.musicTrack</upnp:class><upnp:album>SmartThings Catalog</upnp:album><upnp:artist>SmartThings</upnp:artist><upnp:albumArtURI>https://graph.api.smartthings.com/api/devices/icons/st.Entertainment.entertainment2-icn?displaySize=2x</upnp:albumArtURI><dc:title>SmartThings Message</dc:title><res protocolInfo=\"http-get:*:audio/mpeg:DLNA.ORG_PN=MP3;DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01500000000000000000000000000000\" >${groovy.xml.XmlUtil.escapeXml(uri)} </res></item> </DIDL-Lite>"
+    metaData = metaData?:"<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\"><item id=\"1\" parentID=\"1\" restricted=\"1\"><upnp:class>object.item.audioItem.audioBroadcast</upnp:class><upnp:album>SmartThings Catalog</upnp:album><upnp:artist>SmartThings</upnp:artist><upnp:albumArtURI>https://graph.api.smartthings.com/api/devices/icons/st.Entertainment.entertainment2-icn?displaySize=2x</upnp:albumArtURI><dc:title>SmartThings Message</dc:title><res protocolInfo=\"http-get:*:audio/mpeg:*\" >${groovy.xml.XmlUtil.escapeXml(uri)} </res></item> </DIDL-Lite>"
     mediaRendererAction("SetAVTransportURI", [InstanceID:0, CurrentURI:cleanUri(uri), CurrentURIMetaData:cleanUri(metaData)])
 }
 
@@ -700,7 +706,7 @@ def playText(String msg) {
 }
 
 def setText(String msg) {
-	def sound = externalTTS ? textToSpeechT(msg) : textToSpeech(msg)
+	def sound = externalTTS ? textToSpeechT(msg) : safeTextToSpeech(msg)
 	setTrack(sound.uri)
 }
 
@@ -711,24 +717,22 @@ def speak(String msg){
 // Custom commands
 
 def subscribe() {
-	log.trace "subscribe()"
 	def result = []
-	result << subscribeAction(getDataValue("avteurl"))
-	result << delayAction(2500)
 	result << subscribeAction(getDataValue("rceurl"))
+	result << delayAction(2500)
+	result << subscribeAction(getDataValue("avteurl"))
 	result << delayAction(2500)
 	result
 }
 def unsubscribe() {
-	log.trace "unsubscribe()"
     def result = [
 		unsubscribeAction(getDataValue("avteurl"), device.getDataValue('subscriptionId')),
 		unsubscribeAction(getDataValue("rceurl"), device.getDataValue('subscriptionId')),
 		unsubscribeAction(getDataValue("avteurl"), device.getDataValue('subscriptionId1')),
 		unsubscribeAction(getDataValue("rceurl"), device.getDataValue('subscriptionId1')),
 	]
-	updateDataValue("subscriptionId", "")
-	updateDataValue("subscriptionId1", "")
+	//updateDataValue("subscriptionId", "")
+	//updateDataValue("subscriptionId1", "")
 	result
 }
 
@@ -807,9 +811,10 @@ private subscribeAction(path, callbackPath="") {
 			HOST: ip,
 			CALLBACK: "<http://${address}/notify$callbackPath>",
 			NT: "upnp:event",
-			TIMEOUT: "Second-1200"])
+			TIMEOUT: "Second-${state.gapTime ?:300}"])
 	result
 }
+
 
 private unsubscribeAction(path, sid) {
 	def ip = getHostAddress()
@@ -908,3 +913,16 @@ private textToSpeechT(message){
     	[uri: "x-rincon-mp3radio://www.translate.google.com/translate_tts?tl=en&client=t&q=" + URLEncoder.encode("You selected the Text to Speach Function but did not enter a Message", "UTF-8").replaceAll(/\+/,'%20') +"&sf=//s3.amazonaws.com/smartapp-", duration: "10"]
     }
 }
+
+private safeTextToSpeech(message) {
+	message = message?:"You selected the Text to Speach Function but did not enter a Message"
+    log.trace "safeTextToSpeech(${message})"
+    try {
+        state.soundMessage = textToSpeech(message)
+    }
+    catch (Throwable t) {
+        log.error t
+        state.soundMessage = textToSpeechT(message)
+    }
+}
+
