@@ -1,5 +1,5 @@
 /** 
- *  MediaRenderer Player v2.0.0
+ *  MediaRenderer Player v2.1.0
  *
  *  Author: SmartThings - Ulises Mujica (Ule)
  *
@@ -11,6 +11,7 @@ preferences {
         input(name: "actionsDelay", type: "enum", title: "Delay between actions (seconds)", options: ["0","1","2","3"])
         input(name: "refreshFrequency", type: "enum", title: "Refresh frequency (minutes)", options:[0:"Auto",3:"3",5:"5",10:"10",15:"15",20:"20"])
         input "externalTTS", "bool", title: "Use External Text to Speech", required: false, defaultValue: false
+        input "ttsApiKey", "text", title: "TTS Key", required: false
 }
 metadata {
 	// Automatically generated. Make future change here.
@@ -906,23 +907,27 @@ private cleanUri(uri) {
     return uri
 }
 
+
 private textToSpeechT(message){
-	if (message) {
-	    [uri: "x-rincon-mp3radio://www.translate.google.com/translate_tts?tl=en&client=t&q=" + URLEncoder.encode(message, "UTF-8").replaceAll(/\+/,'%20') +"&sf=//s3.amazonaws.com/smartapp-", duration: "${5 + Math.max(Math.round(message.length()/12),2)}"]
+    if (message) {
+    	if (ttsApiKey){
+            [uri: "x-rincon-mp3radio://api.voicerss.org/" + "?key=$ttsApiKey&hl=en-us&r=0&f=48khz_16bit_mono&src=" + URLEncoder.encode(message, "UTF-8").replaceAll(/\+/,'%20') +"&sf=//s3.amazonaws.com/smartapp-" , duration: "${5 + Math.max(Math.round(message.length()/12),2)}"]
+        }else{
+        	message = message.length() >100 ? message[0..90] :message
+        	[uri: "x-rincon-mp3radio://www.translate.google.com/translate_tts?tl=en&client=t&q=" + URLEncoder.encode(message, "UTF-8").replaceAll(/\+/,'%20') +"&sf=//s3.amazonaws.com/smartapp-", duration: "${5 + Math.max(Math.round(message.length()/12),2)}"]
+     	}
     }else{
-    	[uri: "x-rincon-mp3radio://www.translate.google.com/translate_tts?tl=en&client=t&q=" + URLEncoder.encode("You selected the Text to Speach Function but did not enter a Message", "UTF-8").replaceAll(/\+/,'%20') +"&sf=//s3.amazonaws.com/smartapp-", duration: "10"]
+    	[uri: "https://s3.amazonaws.com/smartapp-media/tts/633e22db83b7469c960ff1de955295f57915bd9a.mp3", duration: "10"]
     }
 }
 
 private safeTextToSpeech(message) {
-	message = message?:"You selected the Text to Speach Function but did not enter a Message"
-    log.trace "safeTextToSpeech(${message})"
+    message = message?:"You selected the Text to Speach Function but did not enter a Message"
     try {
-        state.soundMessage = textToSpeech(message)
+        textToSpeech(message)
     }
     catch (Throwable t) {
         log.error t
-        state.soundMessage = textToSpeechT(message)
+        textToSpeechT(message)
     }
 }
-
