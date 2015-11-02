@@ -14,7 +14,7 @@
  *
  *  Author: SmartThings-Ule
  *  Date: 2015-10-09
- *  v 1.1.1.
+ *  v 1.1.2.
  *  To use RadioTunes stations, you mus get a free account and set the key in the app
  *  Once you have an Radio Tunes account, go to http://www.radiotunes.com/settings and select "Hardware Player" and "Good (96k MP3)"
  *  You going to see a url like this http://listen.radiotunes.com/public3/hit00s.pls?listen_key=xxxxxxxxxxxxxxxxx
@@ -294,7 +294,7 @@ private takeAction(evt) {
 			sonos.playTrackAndResume(state.sound.uri, state.sound.duration, volume)
             break
 		case "Track":
-            	playTrack(state.selectedSong)
+			sonos.playTrack(state.selectedSong)
             break
         case "Radio Tunes":
             sonos.playTrack("x-rincon-mp3radio://pub${RTServer}.radiotunes.com:80/radiotunes_${radioTunesStations[radioTunes].key[0]}?${RTKey}","<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\"><item id=\"1\" parentID=\"1\" restricted=\"1\"><upnp:class>object.item.audioItem.musicTrack</upnp:class><upnp:album>Radio Tunes</upnp:album><upnp:artist>${groovy.xml.XmlUtil.escapeXml(radioTunesStations[radioTunes].description[0])}</upnp:artist><upnp:albumArtURI>${groovy.xml.XmlUtil.escapeXml(radioTunesStations[radioTunes].artURI[0])}</upnp:albumArtURI><dc:title>${groovy.xml.XmlUtil.escapeXml(radioTunes)}</dc:title><res protocolInfo=\"http-get:*:audio/mpeg:DLNA.ORG_PN=MP3;DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01500000000000000000000000000000\" >${groovy.xml.XmlUtil.escapeXml("x-rincon-mp3radio://pub${RTServer}.radiotunes.com:80/radiotunes_${radioTunesStations[radioTunes].key[0]}?${RTKey}")} </res></item> </DIDL-Lite>")
