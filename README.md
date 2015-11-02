@@ -1,5 +1,5 @@
 # DLNA-PLAYER 
-Generic DLNA Player to Smartthings v 1.9.5
+Generic DLNA Player to Smartthings v 2.0.1
 
 The **DLNA PLAYER** Device Type allows to [SmartThings](http://www.smartthings.com) to send messages and music to almost any DLNA Media Renderer Device
 
