@@ -420,16 +420,7 @@ private loadText() {
 		case "Lightsaber":
 			state.sound = [uri: "http://s3.amazonaws.com/smartapp-media/sonos/lightsaber.mp3", duration: "10"]
 			break;
-        case "SmoothLounge":
-			state.sound = [uri: "http://pub7.radiotunes.com:80/radiotunes_smoothlounge?7a2f52d7b7965a6149b777bf", duration: "100000"]
-			break
-        case "SmoothJazz":
-			state.sound = [uri: "http://pub6.radiotunes.com:80/radiotunes_smoothjazz?7a2f52d7b7965a6149b777bf", duration: "100000"]
-			break;
-        case "NewAge":
-			state.sound = [uri: "http://pub6.radiotunes.com:80/radiotunes_newage?7a2f52d7b7965a6149b777bf", duration: "100000"]
-			break;
-		default:
+        	default:
 			 state.sound = externalTTS ? textToSpeechT("You selected the sound option but did not enter a sound in the $app.label Smart App") : textToSpeech("You selected the sound option but did not enter a sound in the $app.label Smart App")
 			break;
 	}
