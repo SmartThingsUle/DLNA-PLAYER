@@ -901,10 +901,14 @@ private hex(value, width=2) {
 	}
 	s
 }
+
 private cleanUri(uri) {
-	if (uri){
+    def model = getDataValue("model")
+    if (uri){
         uri = uri.replace("https:","http:")
-        uri = uri.replace("x-rincon-mp3radio:","http:")
+        if (!model?.toLowerCase()?.contains("sonos")){
+        	uri = uri.replace("x-rincon-mp3radio:","http:")
+        }
     }
     return uri
 }
