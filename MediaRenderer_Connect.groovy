@@ -287,7 +287,7 @@ def locationHandler(evt) {
                     device = it
                 }
             }
-			if ( !device?.modelName?.text().startsWith("Sonos") && device?.deviceType?.text().contains("urn:schemas-upnp-org:device:MediaRenderer:1"))
+			if ( device?.deviceType?.text().contains("urn:schemas-upnp-org:device:MediaRenderer:1"))
 			{
 				def avtcurl = ""
 				def avteurl = ""
