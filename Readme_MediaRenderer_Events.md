@@ -39,6 +39,17 @@ MediaRenderer Connect
 
 ### Revision History
 
+
+**Version 1.3.0.**
+
+* Multiple Speakers added
+* Now you can select several speakers to send music, messages, track, stations, the sound is not in sync, the satart play depends of the speaker and web response.
+
+**Version 1.2.0.**
+
+* New Text to Speech added
+* Now you can avoid Text to speech failures, you can add the voicerss.org service, its free, you must to register and get you key
+
 **Version 1.1.0.**
 
 * Multiple Radio Station Added, Mode:  Loop, Random, Shuffle
