@@ -126,13 +126,13 @@ def mainPage() {
 def addMessage() {
 	dynamicPage(name: "addMessage") {
 		section{
-			 input "message","text",title:"Play this message?", required:actionType == "Message"? true:flase
-             paragraph "You can use wilcard with your message"
-             paragraph "(name) = Device Name ex. Kitchen Light, Speaker Room"
-             paragraph "(type) = Device Type ex. Motion, Temperature"
-             paragraph "(value) = New Device State ex. On, Off, Active"
-             paragraph "(mode) = Location Mode ex. Stay, Away"
-             paragraph "(location) = Location Name ex. Home, Office"
+		input "message","text",title:"Play this message?", required:actionType == "Message"? true:flase
+		paragraph "You can use wilcard with your message"
+		paragraph "#name = Device Name ex. Kitchen Light, Speaker Room"
+		paragraph "#type = Device Type ex. Motion, Temperature"
+		paragraph "#value = New Device State ex. On, Off, Active"
+		paragraph "#mode = Location Mode ex. Stay, Away"
+		paragraph "#location = Location Name ex. Home, Office"
 		}
 		section("Message settings", hideable:true, hidden: true) {
 	        input "externalTTS", "bool", title: "Force Only External Text to Speech", required: false, defaultValue: false
