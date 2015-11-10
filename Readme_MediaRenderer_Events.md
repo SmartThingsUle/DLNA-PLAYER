@@ -16,7 +16,7 @@ More than 200 music station, with several genres
 
 1. Self-publish MadiaRenderer Events SmartApp by creating a new SmartApp in the
 [SmartThings IDE](https://graph.api.smartthings.com/ide/apps) and pasting the
-[source code](https://raw.githubusercontent.com/SmartThingsUle/DLNA-PLAYER/master/Media_Renderer_Events.groovy)
+[source code](https://raw.githubusercontent.com/SmartThingsUle/DLNA-PLAYER/master/Media Renderer Events.groovy)
 in the "From Code" tab. Please refer to the
 [SmartThings Developer Documentation](http://docs.smartthings.com/en/latest/index.html)
 for more information.
