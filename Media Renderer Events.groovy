@@ -335,7 +335,7 @@ private takeAction(evt) {
     switch(actionType) {
         case "Message":
 			speech = safeTextToSpeech(normalizeMessage(message,evt))
-			//sonos.playTrackAndResume(speech.uri, speech.duration, volume)
+			sonos.playTrackAndResume(speech.uri, speech.duration, volume)
             break
         case "Sound":
 			sonos.playTrackAndResume(state.sound.uri, state.sound.duration, volume)
