@@ -68,7 +68,7 @@ def mainPage() {
             input "radioTunesM", "enum", title: "Play Random RadioTunes Station?", required: actionType == "Multiple Radio Tunes"? true:flase, multiple:true, options: radioTunesOptions
 		}
         section("Radio Tunes settings", hideable: (actionType == "Radio Tunes" || actionType == "Multiple Radio Tunes") && !RTKey ? flase:true, hidden: true) {
-        	input "RTKey","text",title:"Radio Tunes Key?", required:actionType == "Radio Tunes" || "Multiple Radio Tunes" ? true:flase, defaultValue: "3cd122157956b10aaa544b5c"
+        	input "RTKey","text",title:"Radio Tunes Key?", required:actionType == "Radio Tunes" || "Multiple Radio Tunes" ? true:flase, defaultValue: ""
             input "RTServer", "enum", title: "Radio Tunes Server?", required: true, defaultValue: "5", options: ["1","2","3","4","5","6","7","8"]
             input "RTMode", "enum", title: "Multiple Mode?", required: true, defaultValue: "Shuffle", options: ["Loop","Random","Shuffle"]
         }
