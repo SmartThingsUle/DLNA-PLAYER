@@ -1,5 +1,5 @@
 /**
- *  Copyright 2015 
+ *  Copyright 2015 SmartThings
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -24,16 +24,18 @@
 definition(
 	name: "Media Renderer Events",
 	namespace: "smartthings",
-	author: "SmartThings-Ule",
-	description: "Play a sound,RadioTunes, RadioRock, Jazz Radio, Digitally imported station or custom message through your MediaRenderer,Sonos when the mode changes or other events occur.",
+	author: "SmartThings",
+	description: "Play a sound,RadioTunes station or custom message through your MediaRenderer,Sonos when the mode changes or other events occur.",
 	category: "SmartThings Labs",
 	iconUrl: "https://s3.amazonaws.com/smartapp-icons/Partner/sonos.png",
 	iconX2Url: "https://s3.amazonaws.com/smartapp-icons/Partner/sonos@2x.png"
 )
 
 preferences {
-	page(name: "mainPage", title: "Play a message on your Sonos when something happens", install: true, uninstall: true)
-	page(name: "chooseTrack", title: "Select a track or station")
+	page(name: "mainPage", title: "Play or Stop message, sount, track or station on your Player when something happens", install: true, uninstall: true)
+	page(name: "triggersPlay", title: "Play When ...")
+    page(name: "triggersStop", title: "Stop When ...")
+    page(name: "chooseTrack", title: "Select a track or station")
     page(name: "addMessage", title: "Add the message to play")
     page(name: "ttsKey", title: "Add the Text for Speach Key")
 	page(name: "timeIntervalInput", title: "Only during a certain time") {
@@ -48,42 +50,10 @@ preferences {
 
 def mainPage() {
 	dynamicPage(name: "mainPage") {
-		def anythingSet = anythingSet()
-        if (anythingSet) {
-			section("Play message when"){
-				ifSet "motion", "capability.motionSensor", title: "Motion Here", required: false, multiple: true
-				ifSet "contact", "capability.contactSensor", title: "Contact Opens", required: false, multiple: true
-				ifSet "contactClosed", "capability.contactSensor", title: "Contact Closes", required: false, multiple: true
-				ifSet "acceleration", "capability.accelerationSensor", title: "Acceleration Detected", required: false, multiple: true
-				ifSet "mySwitch", "capability.switch", title: "Switch Turned On", required: false, multiple: true
-				ifSet "mySwitchOff", "capability.switch", title: "Switch Turned Off", required: false, multiple: true
-				ifSet "arrivalPresence", "capability.presenceSensor", title: "Arrival Of", required: false, multiple: true
-				ifSet "departurePresence", "capability.presenceSensor", title: "Departure Of", required: false, multiple: true
-				ifSet "smoke", "capability.smokeDetector", title: "Smoke Detected", required: false, multiple: true
-				ifSet "water", "capability.waterSensor", title: "Water Sensor Wet", required: false, multiple: true
-				ifSet "button1", "capability.button", title: "Button Press", required:false, multiple:true //remove from production
-				ifSet "triggerModes", "mode", title: "System Changes Mode", required: false, multiple: true
-				ifSet "timeOfDay", "time", title: "At a Scheduled Time", required: false
-			}
-		}
-		def hideable = anythingSet || app.installationState == "COMPLETE"
-		def sectionTitle = anythingSet ? "Select additional triggers" : "Play message when..."
-
-		section(sectionTitle, hideable: hideable, hidden: true){
-			ifUnset "motion", "capability.motionSensor", title: "Motion Here", required: false, multiple: true
-			ifUnset "contact", "capability.contactSensor", title: "Contact Opens", required: false, multiple: true
-			ifUnset "contactClosed", "capability.contactSensor", title: "Contact Closes", required: false, multiple: true
-			ifUnset "acceleration", "capability.accelerationSensor", title: "Acceleration Detected", required: false, multiple: true
-			ifUnset "mySwitch", "capability.switch", title: "Switch Turned On", required: false, multiple: true
-			ifUnset "mySwitchOff", "capability.switch", title: "Switch Turned Off", required: false, multiple: true
-			ifUnset "arrivalPresence", "capability.presenceSensor", title: "Arrival Of", required: false, multiple: true
-			ifUnset "departurePresence", "capability.presenceSensor", title: "Departure Of", required: false, multiple: true
-			ifUnset "smoke", "capability.smokeDetector", title: "Smoke Detected", required: false, multiple: true
-			ifUnset "water", "capability.waterSensor", title: "Water Sensor Wet", required: false, multiple: true
-			ifUnset "button1", "capability.button", title: "Button Press", required:false, multiple:true //remove from production
-			ifUnset "triggerModes", "mode", title: "System Changes Mode", description: "Select mode(s)", required: false, multiple: true
-			ifUnset "timeOfDay", "time", title: "At a Scheduled Time", required: false
-		}
+		section{
+        	href "triggersPlay", title: "Select play triggers?",required: flase, description: anythingSet()?"Change triggers":"Tap to set"
+            href "triggersStop", title: "Select stop triggers?",required: flase, description: anythingSet("Stop")?"Change triggers":"Tap to set"
+        }
         def radioTunesOptions = ["DI 00's Club Hits","DI Ambient","DI Bass & Jackin' House","DI Bassline","DI Big Beat","DI Big Room House","DI Breaks","DI Chill & Tropical House","DI ChillHop","DI Chillout","DI Chillout Dreams","DI Chillstep","DI Classic EuroDance","DI Classic EuroDisco","DI Classic Trance","DI Classic Vocal Trance","DI Club Dubstep","DI Club Sounds","DI DJ Mixes","DI Dark DnB","DI Dark PsyTrance","DI Deep House","DI Deep Nu-Disco","DI Deep Tech","DI Detroit House & Techno","DI Disco House","DI Downtempo Lounge","DI Drum and Bass","DI Drumstep","DI Dub","DI Dub Techno","DI Dubstep","DI EBM","DI EcLectronica","DI Electro House","DI Electro Swing","DI Electronic Pioneers","DI Electronics","DI Electropop","DI Epic Trance","DI EuroDance","DI Funky House","DI Future Beats","DI Future Garage","DI Future Synthpop","DI Gabber","DI Glitch Hop","DI Goa-Psy Trance","DI Hands Up","DI Hard Dance","DI Hard Techno","DI Hardcore","DI Hardstyle","DI House","DI IDM","DI Indie Dance","DI Jazz House","DI Jungle","DI Latin House","DI Liquid DnB","DI Liquid Dubstep","DI Liquid Trap","DI Lounge","DI Mainstage","DI Melodic Progressive","DI Minimal","DI Nightcore","DI Nu Disco","DI Oldschool Acid","DI Oldschool House","DI Oldschool Rave","DI Oldschool Techno & Trance","DI Progressive","DI Progressive Psy","DI PsyChill","DI Psybient","DI Russian Club Hits","DI Soulful House","DI Space Dreams","DI Tech House","DI Techno","DI Trance","DI Trap","DI Tribal House","DI UMF Radio","DI Underground Techno","DI Vocal Chillout","DI Vocal Lounge","DI Vocal Trance","JR Bass Jazz","JR Bebop","JR Blues","JR Blues Rock","JR Bossa Nova","JR Classic Jazz","JR Contemporary Vocals","JR Cool Jazz","JR Current Jazz","JR Dave Koz & Friends","JR Flamenco Jazz","JR Fusion Lounge","JR Guitar Jazz","JR Gypsy Jazz","JR Hard Bop","JR Holiday Jazz","JR Holiday Smooth Jazz","JR Jazz Ballads","JR Latin Jazz","JR Mellow Jazz","JR Mellow Smooth Jazz","JR Paris Café","JR Piano Jazz","JR Piano Trios","JR Saxophone Jazz","JR Sinatra Style","JR Smooth Bossa Nova","JR Smooth Jazz","JR Smooth Jazz 24'7","JR Smooth Lounge","JR Smooth Uptempo","JR Smooth Vocals","JR Straight-Ahead","JR Swing & Big Band","JR Timeless Classics","JR Trumpet Jazz","JR Vibraphone Jazz","JR Vocal Legends","RR 60's Rock","RR 80's Alternative","RR 80's Rock","RR 90's Alternative","RR 90's Rock","RR Black Metal","RR Blues Rock","RR Classic Hard Rock","RR Classic Metal","RR Classic Rock","RR Death Metal","RR Grunge","RR Hair Bands","RR Hard Rock","RR Heavy Metal","RR Indie Rock","RR Industrial","RR Melodic Death Metal","RR Metal","RR Metalcore","RR Modern Rock","RR Nu Metal","RR Pop Rock","RR Power Metal","RR Progressive Rock","RR Punk Rock","RR Rock Ballads","RR Screamo-Emo","RR Soft Rock","RR Symphonic Metal","RR Thrash Metal","RT 00's Hits","RT 00's R&B","RT 60's Rock","RT 80's Alt & New Wave","RT 80's Dance","RT 80's Rock Hits","RT 90's Hits","RT 90's R&B","RT Alternative Rock","RT Ambient","RT American Songbook","RT Baroque Period","RT Bebop Jazz","RT Best of the 60's","RT Best of the 80's","RT Blues Rock","RT Bossa Nova","RT Café de Paris","RT Chillout","RT Classic Christmas","RT Classic Hip-Hop","RT Classic Motown","RT Classic Rock","RT Classical Guitar","RT Classical Period","RT Classical Piano Trios","RT Club Bollywood","RT Contemporary Christian","RT Country","RT DaTempo Lounge","RT Dance Hits","RT Dave Koz & Friends","RT Disco Party","RT Downtempo Lounge","RT Dreamscapes","RT EDM Fest","RT EuroDance","RT Hard Rock","RT Hit 70's","RT Holiday Smooth Jazz","RT Indie Rock","RT Jazz Classics","RT Jpop","RT Lounge","RT Love Music","RT Meditation","RT Mellow Jazz","RT Mellow Smooth Jazz","RT Metal","RT Modern Blues","RT Modern Rock","RT Mostly Classical","RT Movie Soundtracks","RT Mozart","RT Nature","RT New Age","RT Old School Funk & Soul","RT Oldies","RT Piano Jazz","RT Pop Christmas","RT Pop Rock","RT Reggaeton","RT Relaxation","RT Relaxing Ambient Piano","RT Romantic Period","RT Romantica","RT Roots Reggae","RT Salsa","RT Slow Jams","RT Smooth Bossa Nova","RT Smooth Jazz","RT Smooth Jazz 24'7","RT Smooth Lounge","RT Soft Rock","RT Solo Piano","RT Top Hits","RT Uptempo Smooth Jazz","RT Urban Hits","RT Urban Pop Hits","RT Vocal Chillout","RT Vocal Lounge","RT Vocal New Age","RT Vocal Smooth Jazz","RT World"]
         
 		section{
@@ -98,7 +68,7 @@ def mainPage() {
             input "radioTunesM", "enum", title: "Play Random RadioTunes Station?", required: actionType == "Multiple Radio Tunes"? true:flase, multiple:true, options: radioTunesOptions
 		}
         section("Radio Tunes settings", hideable: (actionType == "Radio Tunes" || actionType == "Multiple Radio Tunes") && !RTKey ? flase:true, hidden: true) {
-        	input "RTKey","text",title:"Radio Tunes Key?", required:actionType == "Radio Tunes" || "Multiple Radio Tunes" ? true:flase, defaultValue: ""
+        	input "RTKey","text",title:"Radio Tunes Key?", required:actionType == "Radio Tunes" || "Multiple Radio Tunes" ? true:flase, defaultValue: "3cd122157956b10aaa544b5c"
             input "RTServer", "enum", title: "Radio Tunes Server?", required: true, defaultValue: "5", options: ["1","2","3","4","5","6","7","8"]
             input "RTMode", "enum", title: "Multiple Mode?", required: true, defaultValue: "Shuffle", options: ["Loop","Random","Shuffle"]
         }
@@ -123,16 +93,71 @@ def mainPage() {
 		}
 	}
 }
+
+def triggersPlay(){
+	dynamicPage(name: "triggersPlay") {
+	    triggers("")
+    }
+}
+def triggersStop(){
+        dynamicPage(name: "triggersStop") {
+        triggers("Stop")
+    }
+}
+
+def triggers(command=""){
+    	def anythingSet = anythingSet(command)
+        if (anythingSet) {
+			section(){
+				ifSet "motion$command", "capability.motionSensor", title: "Motion Here", required: false, multiple: true
+				ifSet "contact$command", "capability.contactSensor", title: "Contact Opens", required: false, multiple: true
+				ifSet "contactClosed$command", "capability.contactSensor", title: "Contact Closes", required: false, multiple: true
+				ifSet "acceleration$command", "capability.accelerationSensor", title: "Acceleration Detected", required: false, multiple: true
+				ifSet "mySwitch$command", "capability.switch", title: "Switch Turned On", required: false, multiple: true
+				ifSet "mySwitchOff$command", "capability.switch", title: "Switch Turned Off", required: false, multiple: true
+				ifSet "arrivalPresence$command", "capability.presenceSensor", title: "Arrival Of", required: false, multiple: true
+				ifSet "departurePresence$command", "capability.presenceSensor", title: "Departure Of", required: false, multiple: true
+				ifSet "smoke$command", "capability.smokeDetector", title: "Smoke Detected", required: false, multiple: true
+				ifSet "water$command", "capability.waterSensor", title: "Water Sensor Wet", required: false, multiple: true
+				ifSet "lock$command", "capability.lock", title: "Lock locks", required: false, multiple: true
+				ifSet "lockLocks$command", "capability.lock", title: "Lock unlocks", required: false, multiple: true
+				ifSet "button1$command", "capability.button", title: "Button Press", required:false, multiple:true //remove from production
+				ifSet "triggerModes$command", "mode", title: "System Changes Mode", required: false, multiple: true
+				ifSet "timeOfDay$command", "time", title: "At a Scheduled Time", required: false
+			}
+		}
+		def hideable = anythingSet || app.installationState == "COMPLETE"
+		def sectionTitle = anythingSet ? "Select additional triggers" : "Select triggers..."
+
+		section(sectionTitle, hideable: hideable, hidden: true){
+			ifUnset "motion$command", "capability.motionSensor", title: "Motion Here", required: false, multiple: true
+			ifUnset "contact$command", "capability.contactSensor", title: "Contact Opens", required: false, multiple: true
+			ifUnset "contactClosed$command", "capability.contactSensor", title: "Contact Closes", required: false, multiple: true
+			ifUnset "acceleration$command", "capability.accelerationSensor", title: "Acceleration Detected", required: false, multiple: true
+			ifUnset "mySwitch$command", "capability.switch", title: "Switch Turned On", required: false, multiple: true
+			ifUnset "mySwitchOff$command", "capability.switch", title: "Switch Turned Off", required: false, multiple: true
+			ifUnset "arrivalPresence$command", "capability.presenceSensor", title: "Arrival Of", required: false, multiple: true
+			ifUnset "departurePresence$command", "capability.presenceSensor", title: "Departure Of", required: false, multiple: true
+			ifUnset "smoke$command", "capability.smokeDetector", title: "Smoke Detected", required: false, multiple: true
+			ifUnset "water$command", "capability.waterSensor", title: "Water Sensor Wet", required: false, multiple: true
+			ifUnSet "lock$command", "capability.lock", title: "Lock locks", required: false, multiple: true
+			ifUnSet "lock$command", "capability.lock", title: "Lock unlocks", required: false, multiple: true
+			ifUnset "button1$command", "capability.button", title: "Button Press", required:false, multiple:true //remove from production
+			ifUnset "triggerModes$command", "mode", title: "System Changes Mode", description: "Select mode(s)", required: false, multiple: true
+			ifUnset "timeOfDay$command", "time", title: "At a Scheduled Time", required: false
+		}
+}
+
 def addMessage() {
 	dynamicPage(name: "addMessage") {
 		section{
-		input "message","text",title:"Play this message?", required:actionType == "Message"? true:flase
-		paragraph "You can use wilcard with your message"
-		paragraph "#name = Device Name ex. Kitchen Light, Speaker Room"
-		paragraph "#type = Device Type ex. Motion, Temperature"
-		paragraph "#value = New Device State ex. On, Off, Active"
-		paragraph "#mode = Location Mode ex. Stay, Away"
-		paragraph "#location = Location Name ex. Home, Office"
+			 input "message","text",title:"Play this message?", required:actionType == "Message"? true:flase
+             paragraph "You can use wilcard with your message"
+             paragraph "#name = Device Name ex. Kitchen Light, Speaker Room"
+             paragraph "#type = Device Type ex. Motion, Temperature"
+             paragraph "#value = New Device State ex. On, Off, Active"
+             paragraph "#mode = Location Mode ex. Stay, Away"
+             paragraph "#location = Location Name ex. Home, Office"
 		}
 		section("Message settings", hideable:true, hidden: true) {
 	        input "externalTTS", "bool", title: "Force Only External Text to Speech", required: false, defaultValue: false
@@ -140,6 +165,7 @@ def addMessage() {
         }
 	}
 }
+
 def chooseTrack() {
 	dynamicPage(name: "chooseTrack") {
 		section{
@@ -147,6 +173,7 @@ def chooseTrack() {
 		}
 	}
 }
+
 def ttsKey() {
 	dynamicPage(name: "ttsKey") {
 		section{
@@ -170,8 +197,8 @@ def ttsKey() {
 }
 
 private songOptions() {
-
 	// Make sure current selection is in the set
+	log.trace "size ${sonos?.size()}"
 	def options = new LinkedHashSet()
 	if (state.selectedSong?.station) {
 		options << state.selectedSong.station
@@ -203,8 +230,11 @@ private saveSelectedSong() {
             log.info "Looking for $song"
             
             sonos.each {
+
                 dataMaps = it.statesSince("trackData", new Date(0), [max:30]).collect{it.jsonValue}
+                log.info "Searching ${dataMaps.size()} records"
                 data = dataMaps.find {s -> s.station == song}
+                log.info "Found ${data?.station?:"None"}"
                 if (data) {
                     state.selectedSong = data
                     log.debug "Selected song = $state.selectedSong"
@@ -219,9 +249,10 @@ private saveSelectedSong() {
 		log.error t
 	}
 }
-private anythingSet() {
-	for (name in ["motion","contact","contactClosed","acceleration","mySwitch","mySwitchOff","arrivalPresence","departurePresence","smoke","water","button1","timeOfDay","triggerModes","timeOfDay"]) {
-		if (settings[name]) {
+
+private anythingSet(command="") {
+	for (name in ["motion","contact","contactClosed","acceleration","mySwitch","mySwitchOff","arrivalPresence","departurePresence","smoke","water","lock","lockLocks","button1","timeOfDay","triggerModes","timeOfDay"]) {
+        if (settings["$name$command"]) {
 			return true
 		}
 	}
@@ -235,14 +266,14 @@ private ifUnset(Map options, String name, String capability) {
 }
 
 private ifSet(Map options, String name, String capability) {
-	if (settings[name]) {
+    if (settings[name]) {
 		input(options, name, capability)
 	}
 }
 
 def installed() {
 	log.debug "Installed with settings: ${settings}"
-	subscribeToEvents()
+
 }
 
 def updated() {
@@ -250,50 +281,59 @@ def updated() {
 	unsubscribe()
 	unschedule()
 	subscribeToEvents()
+    subscribeToEvents("Stop")
 }
 
-def subscribeToEvents() {
-    subscribe(app, appTouchHandler)
-	subscribe(contact, "contact.open", eventHandler)
-	subscribe(contactClosed, "contact.closed", eventHandler)
-	subscribe(acceleration, "acceleration.active", eventHandler)
-	subscribe(motion, "motion.active", eventHandler)
-	subscribe(mySwitch, "switch.on", eventHandler)
-	subscribe(mySwitchOff, "switch.off", eventHandler)
-	subscribe(arrivalPresence, "presence.present", eventHandler)
-	subscribe(departurePresence, "presence.not present", eventHandler)
-	subscribe(smoke, "smoke.detected", eventHandler)
-	subscribe(smoke, "smoke.tested", eventHandler)
-	subscribe(smoke, "carbonMonoxide.detected", eventHandler)
-	subscribe(water, "water.wet", eventHandler)
-	subscribe(button1, "button.pushed", eventHandler)
+def subscribeToEvents(command="") {
+	subscribe(settings["contact$command"], "contact.open",  "eventHandler$command")
+	subscribe(settings["contactClosed$command"], "contact.closed",  "eventHandler$command")
+	subscribe(settings["acceleration$command"], "acceleration.active",  "eventHandler$command")
+	subscribe(settings["motion$command"], "motion.active",  "eventHandler$command")
+	subscribe(settings["mySwitch$command"], "switch.on", "eventHandler$command")
+	subscribe(settings["mySwitchOff$command"], "switch.off", "eventHandler$command")
+	subscribe(settings["arrivalPresence$command"], "presence.present",  "eventHandler$command")
+	subscribe(settings["departurePresence$command"], "presence.not present",  "eventHandler$command")
+	subscribe(settings["smoke$command"], "smoke.detected",  "eventHandler$command")
+	subscribe(settings["smoke$command"], "smoke.tested",  "eventHandler$command")
+	subscribe(settings["smoke$command"], "carbonMonoxide.detected",  "eventHandler$command")
+	subscribe(settings["water$command"], "water.wet",  "eventHandler$command")
+	subscribe(settings["lock$command"], "lock.lock",  "eventHandler$command")
+	subscribe(settings["lockLock$command"], "lock.unlock",  "eventHandler$command")
+	subscribe(settings["button1$command"], "button.pushed",  "eventHandler$command")
 
-	if (triggerModes) {
-		subscribe(location, modeChangeHandler)
-	}
+	if (settings["timeOfDay$command"]) {
+        schedule(settings["timeOfDay$command"], "eventHandler$command")
+    }
+	if (settings["triggerModes$command"]) {
+        subscribe(location, modeChangeHandler)
+    }
 
-	if (timeOfDay) {
-		schedule(timeOfDay, scheduledTimeHandler)
-	}
+    if (command == "")
+    {
+    	subscribe(app, appTouchHandler)
 
-	if (song) {
-		saveSelectedSong()
-	}
+		if (song) {
+            saveSelectedSong()
+        }
 
-	loadText()
-    
-    if (radioTunesM) {
-        state.radioTunesM = radioTunesM.sort()
-    	state.lastRTS = state.radioTunesM[-1]
+        loadText()
+
+        if (radioTunesM) {
+            state.radioTunesM = radioTunesM.sort()
+            state.lastRTS = state.radioTunesM[-1]
+        }
+    }
+}
+
+def eventHandler(evt=null) {
+    def modeOk = true
+    if(evt?.name == "mode"){
+    	if (!(evt.value in triggerModes)) {
+			modeOk = false
+		}
     }
     
-    log.debug "state.sound : $state.sound"
-    
-}
-
-def eventHandler(evt) {
-	if (allOk) {
-		log.trace "allOk"
+	if (allOk && modeOk ) {
 		def lastTime = state[frequencyKey(evt)]
 		if (oncePerDayOk(lastTime)) {
 			if (frequency) {
@@ -313,15 +353,20 @@ def eventHandler(evt) {
 		}
 	}
 }
-def modeChangeHandler(evt) {
-	if (evt.value in triggerModes) {
-		eventHandler(evt)
+
+def eventHandlerStop(evt) {
+	def modeOk = true
+    if(evt?.name == "mode"){
+    	if (!(evt.value in triggerModesStop)) {
+			modeOk = false
+		}
+    }
+    
+    if (allOk && modeOk) {
+		sonos.stop()
 	}
 }
 
-def scheduledTimeHandler() {
-	eventHandler(null)
-}
 
 def appTouchHandler(evt) {
 	takeAction(evt)
@@ -351,6 +396,7 @@ private takeAction(evt) {
         case "Radio Tunes":
             domain = radioTunes.startsWith("RT")?"radiotunes.com:80/radiotunes":radioTunes.startsWith("DI")?"di.fm:80/di":radioTunes.startsWith("JR")?"jazzradio.com:80/jr":radioTunes.startsWith("RR")?"rockradio.com:80/rr":""
             
+			//log.trace "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\"><item id=\"1\" parentID=\"1\" restricted=\"1\"><upnp:class>object.item.audioItem.musicTrack</upnp:class><upnp:album>Radio Tunes</upnp:album><upnp:artist>${groovy.xml.XmlUtil.escapeXml(radioTunesStations[radioTunes].description[0])}</upnp:artist><upnp:albumArtURI>${groovy.xml.XmlUtil.escapeXml(radioTunesStations[radioTunes].artURI[0])}</upnp:albumArtURI><dc:title>${groovy.xml.XmlUtil.escapeXml(radioTunes)}</dc:title><res protocolInfo=\"http-get:*:audio/mpeg:DLNA.ORG_PN=MP3;DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01500000000000000000000000000000\" >${groovy.xml.XmlUtil.escapeXml("x-rincon-mp3radio://pub${RTServer}.radiotunes.com:80/radiotunes_${radioTunesStations[radioTunes].key[0]}?${RTKey}")} </res></item> </DIDL-Lite>"
             sonos.playTrack("x-rincon-mp3radio://pub${RTServer}.${domain}_${radioTunesStations[radioTunes].key[0]}?${RTKey}","<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\"><item id=\"1\" parentID=\"1\" restricted=\"1\"><upnp:class>object.item.audioItem.audioBroadcast</upnp:class><upnp:album>Radio Tunes</upnp:album><upnp:artist>${groovy.xml.XmlUtil.escapeXml(radioTunesStations[radioTunes].description[0])}</upnp:artist><upnp:albumArtURI>${groovy.xml.XmlUtil.escapeXml(radioTunesStations[radioTunes].artURI[0])}</upnp:albumArtURI><dc:title>${groovy.xml.XmlUtil.escapeXml(radioTunes)}</dc:title><res protocolInfo=\"http-get:*:audio/mpeg:DLNA.ORG_PN=MP3;DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01500000000000000000000000000000\" >${groovy.xml.XmlUtil.escapeXml("x-rincon-mp3radio://pub${RTServer}.${domain}_${radioTunesStations[radioTunes].key[0]}?${RTKey}")} </res></item> </DIDL-Lite>")
             break
         case "Multiple Radio Tunes":
@@ -476,19 +522,13 @@ private loadText() {
 		case "Lightsaber":
 			state.sound = [uri: "http://s3.amazonaws.com/smartapp-media/sonos/lightsaber.mp3", duration: "10"]
 			break;
-        case "SmoothLounge":
-			state.sound = [uri: "http://pub7.radiotunes.com:80/radiotunes_smoothlounge?7a2f52d7b7965a6149b777bf", duration: "100000"]
-			break
-        case "SmoothJazz":
-			state.sound = [uri: "http://pub6.radiotunes.com:80/radiotunes_smoothjazz?7a2f52d7b7965a6149b777bf", duration: "100000"]
-			break;
-        case "NewAge":
-			state.sound = [uri: "http://pub6.radiotunes.com:80/radiotunes_newage?7a2f52d7b7965a6149b777bf", duration: "100000"]
-			break;
 		default:
 			 state.sound = externalTTS ? textToSpeechT("You selected the sound option but did not enter a sound in the $app.label Smart App") : textToSpeech("You selected the sound option but did not enter a sound in the $app.label Smart App")
 			break;
 	}
+ /*   if (actionType == "Message"){
+    	state.soundMessage = externalTTS ? textToSpeechT(message instanceof List ? message[0] : message) :  textToSpeech(message instanceof List ? message[0] : message)
+    }*/
 }
 
 private textToSpeechT(message){
@@ -528,3 +568,6 @@ def normalizeMessage(message, evt){
 return message
 
 }
+
+
+
