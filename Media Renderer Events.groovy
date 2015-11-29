@@ -32,7 +32,7 @@ definition(
 )
 
 preferences {
-	page(name: "mainPage", title: "Play or Stop message, sount, track or station on your Player when something happens", install: true, uninstall: true)
+	page(name: "mainPage", title: "Play or Stop message, sound, track or station on your Player when something happens", install: true, uninstall: true)
 	page(name: "triggersPlay", title: "Play When ...")
     page(name: "triggersStop", title: "Stop When ...")
     page(name: "chooseTrack", title: "Select a track or station")
@@ -119,8 +119,8 @@ def triggers(command=""){
 				ifSet "departurePresence$command", "capability.presenceSensor", title: "Departure Of", required: false, multiple: true
 				ifSet "smoke$command", "capability.smokeDetector", title: "Smoke Detected", required: false, multiple: true
 				ifSet "water$command", "capability.waterSensor", title: "Water Sensor Wet", required: false, multiple: true
-				ifSet "lock$command", "capability.lock", title: "Lock locks", required: false, multiple: true
-				ifSet "lockLocks$command", "capability.lock", title: "Lock unlocks", required: false, multiple: true
+				ifSet "lock$command", "capability.unlock", title: "Lock unlocks", required: false, multiple: true
+				ifSet "lockLocks$command", "capability.lock", title: "Lock locks", required: false, multiple: true
 				ifSet "button1$command", "capability.button", title: "Button Press", required:false, multiple:true //remove from production
 				ifSet "triggerModes$command", "mode", title: "System Changes Mode", required: false, multiple: true
 				ifSet "timeOfDay$command", "time", title: "At a Scheduled Time", required: false
@@ -140,8 +140,8 @@ def triggers(command=""){
 			ifUnset "departurePresence$command", "capability.presenceSensor", title: "Departure Of", required: false, multiple: true
 			ifUnset "smoke$command", "capability.smokeDetector", title: "Smoke Detected", required: false, multiple: true
 			ifUnset "water$command", "capability.waterSensor", title: "Water Sensor Wet", required: false, multiple: true
-			ifUnSet "lock$command", "capability.lock", title: "Lock locks", required: false, multiple: true
-			ifUnSet "lock$command", "capability.lock", title: "Lock unlocks", required: false, multiple: true
+			ifUnset "lock$command", "capability.unlock", title: "Lock unlocks", required: false, multiple: true
+			ifUnset "lockLocks$command", "capability.lock", title: "Lock locks", required: false, multiple: true
 			ifUnset "button1$command", "capability.button", title: "Button Press", required:false, multiple:true //remove from production
 			ifUnset "triggerModes$command", "mode", title: "System Changes Mode", description: "Select mode(s)", required: false, multiple: true
 			ifUnset "timeOfDay$command", "time", title: "At a Scheduled Time", required: false
@@ -198,7 +198,6 @@ def ttsKey() {
 
 private songOptions() {
 	// Make sure current selection is in the set
-	log.trace "size ${sonos?.size()}"
 	def options = new LinkedHashSet()
 	if (state.selectedSong?.station) {
 		options << state.selectedSong.station
@@ -232,9 +231,7 @@ private saveSelectedSong() {
             sonos.each {
 
                 dataMaps = it.statesSince("trackData", new Date(0), [max:30]).collect{it.jsonValue}
-                log.info "Searching ${dataMaps.size()} records"
                 data = dataMaps.find {s -> s.station == song}
-                log.info "Found ${data?.station?:"None"}"
                 if (data) {
                     state.selectedSong = data
                     log.debug "Selected song = $state.selectedSong"
@@ -455,7 +452,6 @@ private getAllOk() {
 
 private getModeOk() {
 	def result = !modes || modes.contains(location.mode)
-	log.trace "modeOk = $result"
 	result
 }
 
@@ -568,6 +564,3 @@ def normalizeMessage(message, evt){
 return message
 
 }
-
-
-
