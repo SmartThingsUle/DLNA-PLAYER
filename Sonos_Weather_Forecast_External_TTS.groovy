@@ -14,13 +14,12 @@
  *
  *  Author: SmartThings
  *  Date: 2014-1-29
- *  Update: 2015-10-29
  */
 definition(
     name: "Sonos Weather Forecast External TTS",
-    namespace: "mujica",
-    author: "SmartThings - Ule",
-    description: "Play a weather report through your Speakers when the mode changes or other events occur",
+    namespace: "smartthings",
+    author: "SmartThings",
+    description: "Play a weather report through your Sonos when the mode changes or other events occur",
     category: "SmartThings Labs",
     iconUrl: "https://s3.amazonaws.com/smartapp-icons/Partner/sonos.png",
     iconX2Url: "https://s3.amazonaws.com/smartapp-icons/Partner/sonos@2x.png"
@@ -87,7 +86,7 @@ def mainPage() {
 			)
 		}
 		section {
-			input "sonos", "capability.musicPlayer", title: "On this Sonos player", required: true
+			input "sonos", "capability.musicPlayer", title: "On this Sonos player", required: true,multiple: true
 		}
 		section("More options", hideable: true, hidden: true) {
         	href "ttsKey", title: "Text to Speach Key", description: ttsApiKey, state: ttsApiKey ? "complete" : "incomplete"
@@ -125,7 +124,7 @@ def ttsKey() {
 		section{
 			input "ttsApiKey", "text", title: "TTS Key", required: false
 		}
-        section ("Voice RSS provides free Text-to-Speech API as WEB service, allows free 350 request per day with high quality voice") {
+        section ("Voice RSS provides free Text-to-Speech API as WEB service, allows 350 free request per day with high quality voice") {
             href(name: "hrefRegister",
                  title: "Register",
                  required: false,
@@ -139,10 +138,7 @@ def ttsKey() {
                  url: "http://www.voicerss.org/",
                  description: "Go to www.voicerss.org")
         }
-    
     }
-    
-    
 }
 
 private anythingSet() {
@@ -231,7 +227,6 @@ def eventHandler(evt) {
 }
 
 def modeChangeHandler(evt) {
-	log.trace "modeChangeHandler $evt.name: $evt.value ($triggerModes)"
 	if (evt.value in triggerModes) {
 		eventHandler(evt)
 	}
@@ -249,16 +244,24 @@ private takeAction(evt) {
 	loadText()
 
 	if (song) {
-		sonos.playSoundAndTrack(state.sound.uri, state.sound.duration, state.selectedSong, volume)
+		sonos.each {
+           it.playSoundAndTrack(cleanUri(state.sound.uri, it?.currentModel), state.sound.duration, state.selectedSong, volume)
+    	}
 	}
 	else if (resumePlaying){
-		sonos.playTrackAndResume(state.sound.uri, state.sound.duration, volume)
+		sonos.each {
+           it.playTrackAndResume(cleanUri(state.sound.uri, it?.currentModel), state.sound.duration, volume)
+    	}
 	}
 	else if (volume) {
-		sonos.playTrackAtVolume(state.sound.uri, volume)
+		sonos.each {
+           it.playTrackAtVolume(cleanUri(state.sound.uri, it?.currentModel), volume)
+    	}
 	}
 	else {
-		sonos.playTrack(state.sound.uri)
+		sonos.each {
+           it.playTrack(cleanUri(state.sound.uri, it?.currentModel))
+    	}
 	}
 
 	if (frequency || oncePerDay) {
@@ -266,10 +269,10 @@ private takeAction(evt) {
 	}
 }
 
+
 private songOptions() {
-
 	// Make sure current selection is in the set
-
+	log.trace "size ${sonos?.size()}"
 	def options = new LinkedHashSet()
 	if (state.selectedSong?.station) {
 		options << state.selectedSong.station
@@ -280,32 +283,41 @@ private songOptions() {
 	}
 
 	// Query for recent tracks
-	def states = sonos.statesSince("trackData", new Date(0), [max:30])
-	def dataMaps = states.collect{it.jsonValue}
-	options.addAll(dataMaps.collect{it.station})
-
+    
+	def dataMaps
+	sonos.each {
+            dataMaps = it.statesSince("trackData", new Date(0), [max:30]).collect{it.jsonValue}
+            options.addAll(dataMaps.collect{it.station})
+    }
 	log.trace "${options.size()} songs in list"
-	options.take(20) as List
+	options.take(30 * (sonos?.size()?:0)) as List
 }
 
 private saveSelectedSong() {
 	try {
-		def thisSong = song
-		def songs = sonos.statesSince("trackData", new Date(0), [max:30]).collect{it.jsonValue}
-		log.info "Searching ${songs.size()} records"
+        if (song == state.selectedSong?.station){
+        	log.debug "Selected song $song"
+        }
+        else{
+            def dataMaps
+            def data
+            log.info "Looking for $song"
+            
+            sonos.each {
 
-		def data = songs.find {s -> s.station == thisSong}
-		log.info "Found ${data?.station}"
-		if (data) {
-			state.selectedSong = data
-			log.debug "Selected song = $state.selectedSong"
-		}
-		else if (song == state.selectedSong?.station) {
-			log.debug "Selected existing entry '$song', which is no longer in the last 20 list"
-		}
-		else {
-			log.warn "Selected song '$song' not found"
-		}
+                dataMaps = it.statesSince("trackData", new Date(0), [max:30]).collect{it.jsonValue}
+                log.info "Searching ${dataMaps.size()} records"
+                data = dataMaps.find {s -> s.station == song}
+                log.info "Found ${data?.station?:"None"}"
+                if (data) {
+                    state.selectedSong = data
+                    log.debug "Selected song = $state.selectedSong"
+                }
+                else if (song == state.selectedSong?.station) {
+                    log.debug "Selected song not found"
+                }
+             }
+        }
 	}
 	catch (Throwable t) {
 		log.error t
@@ -400,24 +412,24 @@ private loadText() {
 		list(forecastOptions).sort().each {opt ->
 			if (opt == "0") {
 				if (isMetric) {
-                	sb << "The current temperature is ${Math.round(current.current_observation.temp_c)} degrees."
+                	sb << "The current temperature is ${Math.round(current?.current_observation?.temp_c?:0)} degrees."
                 }
                 else {
-                	sb << "The current temperature is ${Math.round(current.current_observation.temp_f)} degrees."
+                	sb << "The current temperature is ${Math.round(current?.current_observation?.temp_f?:0)} degrees."
                 }
 				delim = " "
 			}
-			else if (opt == "1") {
+			else if (opt == "1" && weather.forecast) {
 				sb << delim
 				sb << "Today's forecast is "
 				if (isMetric) {
-                	sb << weather.forecast.txt_forecast.forecastday[0].fcttext_metric 
+                	sb << weather.forecast.txt_forecast.forecastday[0].fcttext_metric
                 }
                 else {
                 	sb << weather.forecast.txt_forecast.forecastday[0].fcttext
                 }
 			}
-			else if (opt == "2") {
+			else if (opt == "2" && weather.forecast) {
 				sb << delim
 				sb << "Tonight will be "
 				if (isMetric) {
@@ -427,7 +439,7 @@ private loadText() {
                 	sb << weather.forecast.txt_forecast.forecastday[1].fcttext
                 }
 			}
-			else if (opt == "3") {
+			else if (opt == "3" && weather.forecast) {
 				sb << delim
 				sb << "Tomorrow will be "
 				if (isMetric) {
@@ -469,9 +481,9 @@ private textToSpeechT(message){
     }
 }
 
-private safeTextToSpeech(message) {
+private safeTextToSpeech(message, attempt=0) {
 	message = message?:"You selected the Text to Speach Function but did not enter a Message"
-  
+
     try {
         textToSpeech(message)
     }
@@ -482,10 +494,25 @@ private safeTextToSpeech(message) {
 }
 
 private normalize(message){
+	log.trace "normalize"
     def map = ["mph":" Miles per hour", " N " : " North ","NbE" : "North by east","NNE" : "North-northeast","NEbN" : "Northeast by north"," NE " : " Northeast ","NEbE" : "Northeast by east","ENE" : "East-northeast","EbN" : "East by north"," E " : " East ","EbS" : "East by south","ESE" : "East-southeast","SEbE" : "Southeast by east"," SE " : " Southeast ","SEbS" : "Southeast by south","SSE" : "South-southeast","SbE" : "South by east"," S " : " South ","SbW" : "South by west","SSW" : "South-southwest","SWbS" : "Southwest by south"," SW " : " Southwest ","SWbW" : "Southwest by west","WSW" : "West-southwest","WbS" : "West by south"," W " : " West ","WbN" : "West by north","WNW" : "West-northwest","NWbW" : "Northwest by west"," NW " : " Northwest ","NWbN" : "Northwest by north","NNW" : "North-northwest","NbW" : "North by west"]
     if (message){
         map.each{ k, v ->  message = message.replaceAll("(?i)"+k,v) }
         message = message.replaceAll(/\d+[CF]/, { f ->  f.replaceAll(/[CF]/,f.contains("F") ? " Fahrenheit" :" Celsius") } )
     }
     message
+}
+
+private cleanUri(uri,model="") {
+    log.trace "cleanUri($uri,$model)"
+    if (uri){
+        uri = uri.replace("https:","http:")
+        if (model?.toLowerCase()?.contains("sonos")){
+        	uri = uri.replace("http:","x-rincon-mp3radio:")
+        }else{
+        	uri = uri.replace("x-rincon-mp3radio:","http:")
+        }
+    }
+    log.trace " uri: $uri"
+    return uri
 }
