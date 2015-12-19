@@ -620,7 +620,7 @@ def ttsIvona(message){
     def df = new java.text.SimpleDateFormat("yyyyMMdd'T'HHmmss'Z'")
     df.setTimeZone(TimeZone.getTimeZone("Europe/London"))
     def amzdate = df.format(new Date())
-    def canonicalQueryString = "Input.Data=${URLEncoder.encode(message, "UTF-8").replaceAll(/\+/,'%20')}%3F&Input.Type=text%2Fplain&OutputFormat.Codec=MP3&OutputFormat.SampleRate=22050&Parameters.Rate=slow&Voice.Language=${voiceIvona.getAt(0..4)}&Voice.Name=${voiceIvona.getAt(6..-1)}&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=$ttsAccessKey%2F${amzdate.getAt(0..7)}%2F$regionName%2Ftts%2Faws4_request&X-Amz-Date=$amzdate&X-Amz-SignedHeaders=host";  
+    def canonicalQueryString = "Input.Data=${URLEncoder.encode(message, "UTF-8").replaceAll(/\+/,'%20')}%3F&Input.Type=text%2Fplain&OutputFormat.Codec=MP3&OutputFormat.SampleRate=22050&Parameters.Rate=default&Voice.Language=${voiceIvona.getAt(0..4)}&Voice.Name=${voiceIvona.getAt(6..-1)}&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=$ttsAccessKey%2F${amzdate.getAt(0..7)}%2F$regionName%2Ftts%2Faws4_request&X-Amz-Date=$amzdate&X-Amz-SignedHeaders=host";  
     "http://urbansa.com/tts.php?uri=${URLEncoder.encode("https://tts.${regionName}.ivonacloud.com/CreateSpeech?$canonicalQueryString&X-Amz-Signature=${hmac_sha256(hmac_sha256(hmac_sha256(hmac_sha256(hmac_sha256("AWS4$ttsSecretKey".bytes,amzdate.getAt(0..7)),regionName),"tts"),"aws4_request"), "AWS4-HMAC-SHA256\n$amzdate\n${amzdate.getAt(0..7)}/$regionName/tts/aws4_request\n${sha256Hash("GET\n/CreateSpeech\n$canonicalQueryString\nhost:tts.${regionName}.ivonacloud.com\n\nhost\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")}").collect { String.format("%02x", it) }.join('')}")}"
 }
 
