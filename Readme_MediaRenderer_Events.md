@@ -39,6 +39,10 @@ MediaRenderer Connect
 
 ### Revision History
 
+**Version 1.5.0.**
+
+* Beta Ivona TTS 
+
 **Version 1.4.0.**
 
 * Now more than 200 stations
