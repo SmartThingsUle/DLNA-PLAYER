@@ -66,12 +66,12 @@ def mainPage() {
         section{  
         	href "addMessage", title: "Play this message?",required: actionType == "Message"? true:flase, description: message ? message : "Tap to set", state: message ? "complete" : "incomplete"
         	input "sound", "enum", title: "Play this Sound?", required: actionType == "Sound"? true:flase, defaultValue: "Bell 1", options: ["Bell 1","Bell 2","Dogs Barking","Fire Alarm","Piano","Lightsaber"]
-			href "chooseTrack", title: "Play this track",required: actionType == "Track"? true:flase, description: song ? (song?:state.selectedSong?.station) : "Tap to set", state: song ? "complete" : "incomplete"
+		href "chooseTrack", title: "Play this track",required: actionType == "Track"? true:flase, description: song ? (song?:state.selectedSong?.station) : "Tap to set", state: song ? "complete" : "incomplete"
 	        input "radioTunes", "enum", title: "Play this RadioTunes Station?", required: actionType == "Radio Tunes"? true:flase, options: radioTunesOptions
             input "radioTunesM", "enum", title: "Play Random RadioTunes Station?", required: actionType == "Multiple Radio Tunes"? true:flase, multiple:true, options: radioTunesOptions
 		}
         section("Radio Tunes settings", hideable: (actionType == "Radio Tunes" || actionType == "Multiple Radio Tunes") && !RTKey ? flase:true, hidden: true) {
-        	input "RTKey","text",title:"Radio Tunes Key?", required:actionType == "Radio Tunes" || "Multiple Radio Tunes" ? true:flase, defaultValue: ""
+        	input "RTKey","text",title:"Radio Tunes Key?", required:actionType == "Radio Tunes" || actionType == "Multiple Radio Tunes" ? true:flase, defaultValue: ""
             input "RTServer", "enum", title: "Radio Tunes Server?", required: true, defaultValue: "5", options: ["1","2","3","4","5","6","7","8"]
             input "RTMode", "enum", title: "Multiple Mode?", required: true, defaultValue: "Shuffle", options: ["Loop","Random","Shuffle"]
         }
