@@ -4,9 +4,9 @@ MediaRenderer Events
 The **MediaRenderer Events** SmartApp allows you play messages, sounds, Tracks and Radio Stations from RadioTunes
 [RadioTunes](http://www.radiotunes.com/).
 
-[RadioTunes](http://www.radiotunes.com/) is a free music streaming service knowns before like (Sky.fm) 
+[RadioTunes](http://www.radiotunes.com/) is a music streaming service knowns before like (Sky.fm) 
 
-More than 200 music station, with several genres
+More than 200 music station, with several genres, now you need to have premium account
 
 *If you like this app, please consider supporting its development by making a donation via PayPal.*
 
@@ -38,6 +38,12 @@ for more information.
 MediaRenderer Connect
 
 ### Revision History
+
+**Version 1.6.0.**
+
+* Multiple languages added to voice RSS
+* Ivona TTS more reliable 
+
 
 **Version 1.5.0.**
 
