@@ -26,7 +26,7 @@ import javax.crypto.spec.SecretKeySpec;
 import java.security.InvalidKeyException; 
  
 definition(
-	name: "Media Renderer Events",
+	name: "Media Renderer Events ",
 	namespace: "smartthings",
 	author: "SmartThings",
 	description: "Play a sound,RadioTunes station or custom message through your MediaRenderer,Sonos when the mode changes or other events occur.",
@@ -42,6 +42,7 @@ preferences {
     page(name: "chooseTrack", title: "Select a track or station")
     page(name: "addMessage", title: "Add the message to play")
     page(name: "ttsKey", title: "Add the Text for Speach Key")
+    page(name: "ttsSettings", title: "Text for Speach Settings")
     page(name: "ttsKeyIvona", title: "Add the Ivona Key")
 	page(name: "timeIntervalInput", title: "Only during a certain time") {
 		section {
@@ -66,7 +67,7 @@ def mainPage() {
         section{  
         	href "addMessage", title: "Play this message?",required: actionType == "Message"? true:flase, description: message ? message : "Tap to set", state: message ? "complete" : "incomplete"
         	input "sound", "enum", title: "Play this Sound?", required: actionType == "Sound"? true:flase, defaultValue: "Bell 1", options: ["Bell 1","Bell 2","Dogs Barking","Fire Alarm","Piano","Lightsaber"]
-		href "chooseTrack", title: "Play this track",required: actionType == "Track"? true:flase, description: song ? (song?:state.selectedSong?.station) : "Tap to set", state: song ? "complete" : "incomplete"
+			href "chooseTrack", title: "Play this track",required: actionType == "Track"? true:flase, description: song ? (song?:state.selectedSong?.station) : "Tap to set", state: song ? "complete" : "incomplete"
 	        input "radioTunes", "enum", title: "Play this RadioTunes Station?", required: actionType == "Radio Tunes"? true:flase, options: radioTunesOptions
             input "radioTunesM", "enum", title: "Play Random RadioTunes Station?", required: actionType == "Multiple Radio Tunes"? true:flase, multiple:true, options: radioTunesOptions
 		}
@@ -74,6 +75,9 @@ def mainPage() {
         	input "RTKey","text",title:"Radio Tunes Key?", required:actionType == "Radio Tunes" || actionType == "Multiple Radio Tunes" ? true:flase, defaultValue: ""
             input "RTServer", "enum", title: "Radio Tunes Server?", required: true, defaultValue: "5", options: ["1","2","3","4","5","6","7","8"]
             input "RTMode", "enum", title: "Multiple Mode?", required: true, defaultValue: "Shuffle", options: ["Loop","Random","Shuffle"]
+        }
+        section{  
+        	href "ttsSettings", title: "Text for Speach Settings",required:flase, description:ttsMode
         }
 		section {
 			input "sonos", "capability.musicPlayer", title: "On this Sonos player", required: true,multiple:true
@@ -124,7 +128,7 @@ def triggers(command=""){
 				ifSet "water$command", "capability.waterSensor", title: "Water Sensor Wet", required: false, multiple: true
 				ifSet "lock$command", "capability.lock", title: "Lock locks", required: false, multiple: true
 				ifSet "lockLocks$command", "capability.lock", title: "Lock unlocks", required: false, multiple: true
-				ifSet "button1$command", "capability.button", title: "Button Press", required:false, multiple:true //remove from production
+				ifSet "button1$command", "capability.button", title: "Button Press", required:false, multiple:true 
 				ifSet "triggerModes$command", "mode", title: "System Changes Mode", required: false, multiple: true
 				ifSet "timeOfDay$command", "time", title: "At a Scheduled Time", required: false
 			}
@@ -145,7 +149,7 @@ def triggers(command=""){
 			ifUnset "water$command", "capability.waterSensor", title: "Water Sensor Wet", required: false, multiple: true
 			ifUnset "lock$command", "capability.lock", title: "Lock locks", required: false, multiple: true
 			ifUnset "lock$command", "capability.lock", title: "Lock unlocks", required: false, multiple: true
-			ifUnset "button1$command", "capability.button", title: "Button Press", required:false, multiple:true //remove from production
+			ifUnset "button1$command", "capability.button", title: "Button Press", required:false, multiple:true 
 			ifUnset "triggerModes$command", "mode", title: "System Changes Mode", description: "Select mode(s)", required: false, multiple: true
 			ifUnset "timeOfDay$command", "time", title: "At a Scheduled Time", required: false
 		}
@@ -162,16 +166,20 @@ def addMessage() {
              paragraph "#mode = Location Mode ex. Stay, Away"
              paragraph "#location = Location Name ex. Home, Office"
 		}
-		section("Message settings", hideable:true, hidden: true) {
-	        //input "externalTTS", "bool", title: "Force Only External Text to Speech", required: false, defaultValue: false
+	}
+}
+def ttsSettings() {
+	dynamicPage(name: "ttsSettings") {
+        def languageOptions = ["ca-es":"Catalan","zh-cn":"Chinese (China)","zh-hk":"Chinese (Hong Kong)","zh-tw":"Chinese (Taiwan)","da-dk":"Danish","nl-nl":"Dutch","en-au":"English (Australia)","en-ca":"English (Canada)","en-gb":"English (Great Britain)","en-in":"English (India)","en-us":"English (United States)","fi-fi":"Finnish","fr-ca":"French (Canada)","fr-fr":"French (France)","de-de":"German","it-it":"Italian","ja-jp":"Japanese","ko-kr":"Korean","nb-no":"Norwegian","pl-pl":"Polish","pt-br":"Portuguese (Brazil)","pt-pt":"Portuguese (Portugal)","ru-ru":"Russian","es-mx":"Spanish (Mexico)","es-es":"Spanish (Spain)","sv-se":"Swedish (Sweden)"]
+ 		section() {
             input "ttsMode", "enum", title: "Mode?", required: true, defaultValue: "Vioce RSS",submitOnChange:true, options: ["SmartTings","Ivona","Vioce RSS","Google"]
             href "ttsKey", title: "Voice RSS Key", description: ttsApiKey, state: ttsApiKey ? "complete" : "incomplete", required: ttsMode == "Vioce RSS"?true:false
+            input "ttsLanguage","enum",title:"Language", required:true, multiple: false, defaultValue: "en-us", options: languageOptions
             href "ttsKeyIvona", title: "Ivona Access Key", description: "${ttsAccessKey?:""}-${ttsSecretKey?:""}" ,state: ttsAccessKey && ttsSecretKey ? "complete" : "incomplete",  required: ttsMode == "Ivona" ? true:false
             input "voiceIvona", "enum", title: "Ivona Voice?", required: true, defaultValue: "en-US Salli", options: ["cy-GB Gwyneth","cy-GB Geraint","da-DK Naja","da-DK Mads","de-DE Marlene","de-DE Hans","en-US Salli","en-US Joey","en-AU Nicole","en-AU Russell","en-GB Amy","en-GB Brian","en-GB Emma","en-GB Gwyneth","en-GB Geraint","en-IN Raveena","en-US Chipmunk","en-US Eric","en-US Ivy","en-US Jennifer","en-US Justin","en-US Kendra","en-US Kimberly","es-ES Conchita","es-ES Enrique","es-US Penelope","es-US Miguel","fr-CA Chantal","fr-FR Celine","fr-FR Mathieu","is-IS Dora","is-IS Karl","it-IT Carla","it-IT Giorgio","nb-NO Liv","nl-NL Lotte","nl-NL Ruben","pl-PL Agnieszka","pl-PL Jacek","pl-PL Ewa","pl-PL Jan","pl-PL Maja","pt-BR Vitoria","pt-BR Ricardo","pt-PT Cristiano","pt-PT Ines","ro-RO Carmen","ru-RU Tatyana","ru-RU Maxim","sv-SE Astrid","tr-TR Filiz"]
         }
 	}
 }
-
 def chooseTrack() {
 	dynamicPage(name: "chooseTrack") {
 		section{
@@ -240,11 +248,9 @@ private songOptions() {
     
 	def dataMaps
 	sonos.each {
-		log.trace "it $it"
             dataMaps = it.statesSince("trackData", new Date(0), [max:30]).collect{it.jsonValue}
             options.addAll(dataMaps.collect{it.station})
     }
-	log.trace "${options.size()} songs in list"
 	options.take(30 * (sonos?.size()?:0)) as List
 }
 
@@ -260,12 +266,9 @@ private saveSelectedSong() {
             
             sonos.each {
                 dataMaps = it.statesSince("trackData", new Date(0), [max:30]).collect{it.jsonValue}
-                log.info "Searching ${dataMaps.size()} records"
                 data = dataMaps.find {s -> s.station == song}
-                log.info "Found ${data?.station?:"None"}"
                 if (data) {
                     state.selectedSong = data
-                    log.debug "Selected song = $state.selectedSong"
                 }
                 else if (song == state.selectedSong?.station) {
                     log.debug "Selected song not found"
@@ -401,8 +404,6 @@ def eventHandlerStop(evt) {
 
 def appTouchHandler(evt) {
 	takeAction(evt)
-    // ttsIvona("the mail has arrived yesterday")
-    
 }
 
 private takeAction(evt) {
@@ -412,7 +413,7 @@ private takeAction(evt) {
     switch(actionType) {
         case "Message":
 			speech = safeTextToSpeech(normalizeMessage(message,evt))
-			sonos.playTrackAndResume(speech.uri, speech.duration, volume)
+ 			sonos.playTrackAndResume(speech.uri, speech.duration, volume)
             break
         case "Sound":
 			sonos.playTrackAndResume(state.sound.uri, state.sound.duration, volume)
@@ -442,7 +443,6 @@ private takeAction(evt) {
                     }
                     break
             }
-            //def RTStation = state.radioTunesM[-1]
             Collections.rotate(state.radioTunesM, -1)
 			domain = state.radioTunesM[-1].startsWith("RT")?"radiotunes.com:80/radiotunes":state.radioTunesM[-1].startsWith("DI")?"di.fm:80/di":state.radioTunesM[-1].startsWith("JR")?"jazzradio.com:80/jr":state.radioTunesM[-1].startsWith("RR")?"rockradio.com:80/rr":""
             sonos.playTrack("x-rincon-mp3radio://pub${RTServer}.${domain}_${radioTunesStations[state.radioTunesM[-1]].key[0]}?${RTKey}","<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\"><item id=\"1\" parentID=\"1\" restricted=\"1\"><upnp:class>object.item.audioItem.musicTrack</upnp:class><upnp:album>Radio Tunes</upnp:album><upnp:artist>${groovy.xml.XmlUtil.escapeXml(radioTunesStations[state.radioTunesM[-1]].description[0])}</upnp:artist><upnp:albumArtURI>${groovy.xml.XmlUtil.escapeXml(radioTunesStations[state.radioTunesM[-1]].artURI[0])}</upnp:albumArtURI><dc:title>${groovy.xml.XmlUtil.escapeXml(state.radioTunesM[-1])}</dc:title><res protocolInfo=\"http-get:*:audio/mpeg:DLNA.ORG_PN=MP3;DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01500000000000000000000000000000\" >${groovy.xml.XmlUtil.escapeXml("x-rincon-mp3radio://pub${RTServer}.${domain}_${radioTunesStations[state.radioTunesM[-1]].key[0]}?${RTKey}")} </res></item> </DIDL-Lite>")
@@ -562,11 +562,11 @@ private loadText() {
 
 private textToSpeechT(message){
     if (message) {
-        if(ttsAccessKey && ttsSecretKey){
-        	[uri: ttsIvona(message), duration: "${5 + Math.max(Math.round(message.length()/12),2)}"]
+		if (ttsApiKey){
+            [uri: "x-rincon-mp3radio://api.voicerss.org/" + "?key=$ttsApiKey&hl="+ttsLanguage+"&r=0&f=48khz_16bit_mono&src=" + URLEncoder.encode(message, "UTF-8").replaceAll(/\+/,'%20') +"&sf=//s3.amazonaws.com/smartapp-" , duration: "${5 + Math.max(Math.round(message.length()/12),2)}"]
         }
-		else if (ttsApiKey){
-            [uri: "x-rincon-mp3radio://api.voicerss.org/" + "?key=$ttsApiKey&hl=en-us&r=0&f=48khz_16bit_mono&src=" + URLEncoder.encode(message, "UTF-8").replaceAll(/\+/,'%20') +"&sf=//s3.amazonaws.com/smartapp-" , duration: "${5 + Math.max(Math.round(message.length()/12),2)}"]
+		else if(ttsAccessKey && ttsSecretKey){
+        	[uri: ttsIvona(message), duration: "${5 + Math.max(Math.round(message.length()/12),2)}"]
         }
         else{
         	message = message.length() >100 ? message[0..90] :message
@@ -584,7 +584,7 @@ private safeTextToSpeech(message) {
         	[uri: ttsIvona(message), duration: "${5 + Math.max(Math.round(message.length()/12),2)}"]
         break
         case "Vioce RSS":
-        	[uri: "x-rincon-mp3radio://api.voicerss.org/" + "?key=$ttsApiKey&hl=en-us&r=0&f=48khz_16bit_mono&src=" + URLEncoder.encode(message, "UTF-8").replaceAll(/\+/,'%20') +"&sf=//s3.amazonaws.com/smartapp-" , duration: "${5 + Math.max(Math.round(message.length()/12),2)}"]
+        	[uri: "x-rincon-mp3radio://api.voicerss.org/" + "?key=$ttsApiKey&hl="+ttsLanguage+"&r=0&f=48khz_16bit_mono&src=" + URLEncoder.encode(message, "UTF-8").replaceAll(/\+/,'%20') +"&sf=//s3.amazonaws.com/smartapp-" , duration: "${5 + Math.max(Math.round(message.length()/12),2)}"]
         break
         case "Google":
         	message = message.length() >100 ? message[0..90] :message
@@ -620,8 +620,8 @@ def ttsIvona(message){
     def df = new java.text.SimpleDateFormat("yyyyMMdd'T'HHmmss'Z'")
     df.setTimeZone(TimeZone.getTimeZone("Europe/London"))
     def amzdate = df.format(new Date())
-    def canonicalQueryString = "Input.Data=${URLEncoder.encode(message, "UTF-8").replaceAll(/\+/,'%20')}%3F&Input.Type=text%2Fplain&OutputFormat.Codec=MP3&OutputFormat.SampleRate=22050&Parameters.Rate=default&Voice.Language=${voiceIvona.getAt(0..4)}&Voice.Name=${voiceIvona.getAt(6..-1)}&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=$ttsAccessKey%2F${amzdate.getAt(0..7)}%2F$regionName%2Ftts%2Faws4_request&X-Amz-Date=$amzdate&X-Amz-SignedHeaders=host";  
-    "http://urbansa.com/tts.php?uri=${URLEncoder.encode("https://tts.${regionName}.ivonacloud.com/CreateSpeech?$canonicalQueryString&X-Amz-Signature=${hmac_sha256(hmac_sha256(hmac_sha256(hmac_sha256(hmac_sha256("AWS4$ttsSecretKey".bytes,amzdate.getAt(0..7)),regionName),"tts"),"aws4_request"), "AWS4-HMAC-SHA256\n$amzdate\n${amzdate.getAt(0..7)}/$regionName/tts/aws4_request\n${sha256Hash("GET\n/CreateSpeech\n$canonicalQueryString\nhost:tts.${regionName}.ivonacloud.com\n\nhost\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")}").collect { String.format("%02x", it) }.join('')}")}"
+    def canonicalQueryString = "${URLEncoder.encode(message, "UTF-8").replaceAll(/\+/,'%20')}%3F&Input.Type=text%2Fplain&OutputFormat.Codec=MP3&OutputFormat.SampleRate=22050&Parameters.Rate=medium&Voice.Language=${voiceIvona.getAt(0..4)}&Voice.Name=${voiceIvona.getAt(6..-1)}&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=$ttsAccessKey%2F${amzdate.getAt(0..7)}%2F$regionName%2Ftts%2Faws4_request&X-Amz-Date=$amzdate&X-Amz-SignedHeaders=host";  
+    "http://tts.urbansa.com/tts.php?${now()}=${URLEncoder.encode("$canonicalQueryString&X-Amz-Signature=${hmac_sha256(hmac_sha256(hmac_sha256(hmac_sha256(hmac_sha256("AWS4$ttsSecretKey".bytes,amzdate.getAt(0..7)),regionName),"tts"),"aws4_request"), "AWS4-HMAC-SHA256\n$amzdate\n${amzdate.getAt(0..7)}/$regionName/tts/aws4_request\n${sha256Hash("GET\n/CreateSpeech\nInput.Data=$canonicalQueryString\nhost:tts.${regionName}.ivonacloud.com\n\nhost\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")}").collect { String.format("%02x", it) }.join('')}")}"
 }
 
 def sha256Hash(text) {
