@@ -10,7 +10,7 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  *
- *  Weather Report
+ *  Sonos Weather Forecast
  *
  *  Author: SmartThings - Ule
  *  Date: 2016-2-04
@@ -533,9 +533,6 @@ private loadText() {
         
         weather = getWeatherFeature("forecast$language", zipCode)
 		current = getWeatherFeature("conditions$language", zipCode)
-        def geolookup = getWeatherFeature("tide$language", zipCode)
-        
-        log.trace "tide ${geolookup}"
         
         list(forecastOptions).sort().each {opt ->
 			if (opt == "0") {
@@ -581,7 +578,6 @@ private loadText() {
 
 		def msg = sb.toString()
         msg = msg.replaceAll(/([0-9]+)C/,'$1 degrees') // TODO - remove after next release
-		log.debug "msg = ${msg}"
 		state.sound = safeTextToSpeech(normalize(msg))
 	}
 	else {
@@ -672,8 +668,6 @@ private normalize(message){
     if (message){
         map.each{ k, v ->  message = message.replaceAll("(?)"+k,v) }
     }
-
-    log.debug "message = ${message}"
     message
 }
 
