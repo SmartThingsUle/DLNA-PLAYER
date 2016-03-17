@@ -10,7 +10,7 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  *
- * Media Renderer Messages
+ * Media Renderer Events
  *
  *  Author: SmartThings-Ule
  *  Date: 2015-10-09
@@ -234,6 +234,7 @@ def ttsKeyIvona() {
 }
 private songOptions() {
 	// Make sure current selection is in the set
+	log.trace "size ${sonos?.size()}"
 	def options = new LinkedHashSet()
 	if (state.selectedSong?.station) {
 		options << state.selectedSong.station
@@ -248,22 +249,28 @@ private songOptions() {
             dataMaps = it.statesSince("trackData", new Date(0), [max:30]).collect{it.jsonValue}
             options.addAll(dataMaps.collect{it.station})
     }
+	log.trace "${options.size()} songs in list"
 	options.take(30 * (sonos?.size()?:0)) as List
 }
 
 private saveSelectedSong() {
 	try {
         if (song == state.selectedSong?.station){
+        	log.debug "Selected song $song"
         }
         else{
             def dataMaps
             def data
+            log.info "Looking for $song"
             
             sonos.each {
                 dataMaps = it.statesSince("trackData", new Date(0), [max:30]).collect{it.jsonValue}
+                log.info "Searching ${dataMaps.size()} records"
                 data = dataMaps.find {s -> s.station == song}
+                log.info "Found ${data?.station?:"None"}"
                 if (data) {
                     state.selectedSong = data
+                    log.debug "Selected song = $state.selectedSong"
                 }
                 else if (song == state.selectedSong?.station) {
                     log.debug "Selected song not found"
@@ -423,7 +430,6 @@ private takeAction(evt) {
             }else{
             	sonos.playTrackAndResume(speech.uri, speech.duration, volume)
             }
-			sonos.playTrackAndResume(speech.uri, speech.duration, volume)
             break
         case "Sound":
 			sonos.playTrackAndResume(state.sound.uri, state.sound.duration, volume)
