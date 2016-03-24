@@ -12,7 +12,7 @@
  *  Alexa Connect
  *
  *  Author: Ule
- *  Date: 2016-03-23
+ *  Date: 2016-03-20
  *
  */
 definition(
@@ -110,6 +110,9 @@ def html() {
             }
         }else{
             content = "<audio controls><source src='${speech.uri.replace("x-rincon-mp3radio:","http:")}' type='audio/mpeg'></audio>"
+            if(redirect){
+                content = content + "<form method='get' action='$urlRedirect'><button type='submit'>Redirect</button></form>"
+            }
         }
     }
     
