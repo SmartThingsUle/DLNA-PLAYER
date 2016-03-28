@@ -651,7 +651,7 @@ return message
 def ttsIvona(message){
     def regionName = "us-east-1";
     def df = new java.text.SimpleDateFormat("yyyyMMdd'T'HHmmss'Z'")
-    df.setTimeZone(TimeZone.getTimeZone(UTC"))
+    df.setTimeZone(TimeZone.getTimeZone("UTC"))
     def amzdate = df.format(new Date())
     def canonicalQueryString = "${URLEncoder.encode(message, "UTF-8").replaceAll(/\+/,'%20')}%3F&Input.Type=text%2Fplain&OutputFormat.Codec=MP3&OutputFormat.SampleRate=22050&Parameters.Rate=medium&Voice.Language=${voiceIvona.getAt(0..4)}&Voice.Name=${voiceIvona.getAt(6..-1)}&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=$ttsAccessKey%2F${amzdate.getAt(0..7)}%2F$regionName%2Ftts%2Faws4_request&X-Amz-Date=$amzdate&X-Amz-SignedHeaders=host";  
    "http://tts.urbansa.com/tts.php?${now()}=${URLEncoder.encode("$canonicalQueryString&X-Amz-Signature=${hmac_sha256(hmac_sha256(hmac_sha256(hmac_sha256(hmac_sha256("AWS4$ttsSecretKey".bytes,amzdate.getAt(0..7)),regionName),"tts"),"aws4_request"), "AWS4-HMAC-SHA256\n$amzdate\n${amzdate.getAt(0..7)}/$regionName/tts/aws4_request\n${sha256Hash("GET\n/CreateSpeech\nInput.Data=$canonicalQueryString\nhost:tts.${regionName}.ivonacloud.com\n\nhost\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")}").collect { String.format("%02x", it) }.join('')}")}"
