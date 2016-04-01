@@ -13,8 +13,10 @@
  *
  *  Author: Ule
  *  Date: 2016-03-20
- *
+ * v 1.1  added control devices (switches)
  */
+ 
+ 
 definition(
 	name: "Alexa Connect",
 	namespace: "mujica",
@@ -31,8 +33,13 @@ preferences {
 
 def mainPage() {
 	dynamicPage(name: "mainPage") {
-		section() {
+		section("Authorize voice controlled devices"){
+        	input "switchs", "capability.switch", title: "Switches", required: false ,multiple:true
+        }
+        
+        section() {
 			input "mode", "enum", title: "Mode?", required: true, defaultValue: "Speaker",submitOnChange:true, options: ["Speaker","HTML Player"]
+            input "language", "enum", title: "Language?", required: true, defaultValue: "EN", options: ["EN","SP","DK","DK","NL"]
             input "sonos", "capability.musicPlayer", title: "On this Speaker", required: true,multiple:true
             input "alexaApiKey", "text", title: "Alexa Access Key", required:true,  defaultValue:"millave"
             input "redirect", "bool", title: "Redirect?", defaultValue: false
@@ -90,20 +97,174 @@ def getURL(e) {
 	log.debug "WebUrl : ${state.webUrl}"
 }
 
+def extractInts( String input ) {
+  input.findAll( /\d+/ )*.toInteger()
+}
 
 def html() {
     def text = params.text
     def content
+    def order
+    def command
+    def action
+    def device
 	def metadata = ""
+    def matcher
+    def intensityN
+    def intensity
+    def speech
+    def supportCommand 
     
-    log.trace text
+   
+    
+    
+    /* You can use this example to fill your language commands */
+   
+    /* s = start ,  e = ends , a = any , r = regex */
+
+
+
+def commands = [
+        "EN": ["on": ["a":["turn on","switch on"],"e":["on"]],"off":["a":["turn off","switch off"],"e":["off"]],"setLevel":["r":["turn on.+\\d+%","set.+\\d+%","dim.+\\d+%"]]],
+		"SP": ["on": ["s":["luces","enciende","ilumina"]],"off":["s":["apaga","oscurece","luces fuera"]],"setLevel":["r":["enciende.+\\d+%","ilumina.+\\d+%","disminuye.+\\d+%"]]],
+		"DK": ["on": ["a":"turn on","a":"switch on","e":"on"],"off":["a":"turn off","a":"switch off","e":"off"]],
+		"NL": ["on": ["a":"turn on","a":"switch on","e":"on"],"off":["a":"turn off","a":"switch off","e":"off"]],
+		"LI": ["on": ["a":"turn on","a":"switch on","e":"on"],"off":["a":"turn off","a":"switch off","e":"off"]],
+		"FI": ["on": ["a":"turn on","a":"switch on","e":"on"],"off":["a":"turn off","a":"switch off","e":"off"]],
+		"FC": ["on": ["a":"turn on","a":"switch on","e":"on"],"off":["a":"turn off","a":"switch off","e":"off"]],
+		"FR": ["on": ["a":"turn on","a":"switch on","e":"on"],"off":["a":"turn off","a":"switch off","e":"off"]],
+		"DL": ["on": ["a":"turn on","a":"switch on","e":"on"],"off":["a":"turn off","a":"switch off","e":"off"]],
+		"IT": ["on": ["a":"turn on","a":"switch on","e":"on"],"off":["a":"turn off","a":"switch off","e":"off"]],
+		"NO": ["on": ["a":"turn on","a":"switch on","e":"on"],"off":["a":"turn off","a":"switch off","e":"off"]],
+		"PL": ["on": ["a":"turn on","a":"switch on","e":"on"],"off":["a":"turn off","a":"switch off","e":"off"]],
+		"RU": ["on": ["a":"turn on","a":"switch on","e":"on"],"off":["a":"turn off","a":"switch off","e":"off"]],
+		"SW": ["on": ["a":"turn on","a":"switch on","e":"on"],"off":["a":"turn off","a":"switch off","e":"off"]],
+		"IS": ["on": ["a":"turn on","a":"switch on","e":"on"],"off":["a":"turn off","a":"switch off","e":"off"]],
+		"RO": ["on": ["a":"turn on","a":"switch on","e":"on"],"off":["a":"turn off","a":"switch off","e":"off"]],
+		"TR": ["on": ["a":"turn on","a":"switch on","e":"on"],"off":["a":"turn off","a":"switch off","e":"off"]],
+		"BR": ["on": ["a":"turn on","a":"switch on","e":"on"],"off":["a":"turn off","a":"switch off","e":"off"]],
+       	"TW": ["on": ["a":"turn on","a":"switch on","e":"on"],"off":["a":"turn off","a":"switch off","e":"off"]],
+		"CN": ["on": ["a":"turn on","a":"switch on","e":"on"],"off":["a":"turn off","a":"switch off","e":"off"]],
+        ]
+   
+    
+    log.trace "text $text"
+
+    if (text){
+    	order = text.toLowerCase()
+        commands[language].each { actions, actionsValues ->
+            actionsValues.each{key,value ->
+                switch(key){
+                    case "a":
+                        value.each{
+                            if (order.contains(it)){
+                                action = actions
+                            }
+                        }
+                    break
+                    case "s":
+                        value.each{
+                            if (order.startsWith(it)){
+                                action = actions
+                            }
+                        }
+                    break
+                    case "e":
+                        value.each{
+                            if (order.endsWith(it)){
+                                action = actions
+                            }
+                        }
+                    break
+                    case "r":
+                        value.each{
+                            if (order ==~ /$it/){
+                                action = actions
+                            }
+                        }
+                    break
+                }
+			}
+            
+        }
+        
+        switchs.each {
+            if (order.contains(it.displayName.toLowerCase())){
+                device = it.displayName.toLowerCase()
+                if (action){
+                	it.supportedCommands.each {com ->
+                        if (action == com.name)
+							supportCommand = true;
+                        }
+                }
+            }
+           
+        }
+    }
+    
+    
+    if(action && !device){
+    	text = "nodevice"
+    }
+    if(!action && device){
+    	text = "noaction"
+    }
+    if(action && device && !supportCommand){
+    	text = "nosupportcommand"
+    }
+    
+    if(action && device && supportCommand){
+    text = "ok";
+    	switch(action){
+            case "on":
+            switchs.each {
+                if (it.displayName.toLowerCase() == device ){
+                    it.on()
+                }
+            }
+            break
+            case "off":
+            switchs.each {
+                if (it.displayName.toLowerCase() == device ){
+                    it.off()
+                }
+            }
+            break
+            case "setLevel":
+
+            matcher = order =~ /\d+%/
+            if (matcher){
+                intensity = (matcher[0] =~ /\d+/)[0].toInteger()
+                intensity = intensity > 100 ? 100:intensity
+            }
+            if (intensity){
+                switchs.each {
+                    if (it.displayName.toLowerCase() == device ){
+                        it.setLevel(intensity)
+                    }
+                }
+            }
+            break
+       }
+    }
+    
+    
+    
+    
+    
+    
+    
     content = "<form  name='search' id='search'><input type='text' placeholder='Search' id='text' name='text'></form>"
     
     
     if (text){
-		def speech = [uri: "x-rincon-mp3radio://tts.freeoda.com/alexa.php/" + "?key=$alexaApiKey&text=" + URLEncoder.encode(text, "UTF-8").replaceAll(/\+/,'%20') +"&sf=//s3.amazonaws.com/smartapp-" , duration: "0"]
+		if (text == "ok" || text == "nodevice" || text == "noaction" || text == "nosupportcommand"){
+        	speech = [uri: "x-rincon-mp3radio://tts.freeoda.com/sound/" + text + ".mp3", duration: "10"]
+        }else{
+        	speech = [uri: "x-rincon-mp3radio://tts.freeoda.com/alexa.php/" + "?key=$alexaApiKey&text=" + URLEncoder.encode(text, "UTF-8").replaceAll(/\+/,'%20') +"&sf=//s3.amazonaws.com/smartapp-" , duration: "0"]
+        }
+        
         if (mode == "Speaker"){
-            log.trace speech.uri
             sonos.playTrack(speech.uri)
             if(redirect){
                 metadata = "<meta http-equiv='refresh' content='0; url=$urlRedirect' />"
@@ -116,7 +277,11 @@ def html() {
         }
     }
     
+    
+    def info = ""
     render contentType: "text/html", data: 
+    
+    info + 
     
     """
     <!DOCTYPE html>
