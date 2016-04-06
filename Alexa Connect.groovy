@@ -307,14 +307,12 @@ def html() {
             case "setVolume":
                 matcher = order =~ /\d+%/
                 if (matcher){
-                    intensity = (matcher[0] =~ /\d+/)//[0].toInteger()
-                    //intensity = intensity > 100 ? 100:intensity
+                    intensity = (matcher[0] =~ /\d+/)[0] 
                 }
                 if (!intensity){
                     levels[language].each{levelDesc, levelValue->
                         if (order ==~ /.*$levelDesc.*/){
-                            intensity = levelValue//.toInteger()
-                            //intensity = intensity > 100 ? 100:intensity
+                            intensity = levelValue
                         }
                 	}
                 }
@@ -358,13 +356,7 @@ def html() {
             break
        }
     }
-    
-    
-    
-    
-    
-    
-    
+
     content = "<form  name='search' id='search'><input type='text' placeholder='Search' id='text' name='text'></form>"
     
     
