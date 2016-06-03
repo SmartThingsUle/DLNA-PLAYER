@@ -436,13 +436,25 @@ private takeAction(evt) {
             break
 		case "Track":
         	if(state.selectedSong){
-            	sonos.playTrack(state.selectedSong)
+	            if (volume != null) {
+			sonos.stop()
+			pause(500)
+			sonos.setLevel(volume)
+			pause(500)
+	            }
+	           sonos.playTrack(state.selectedSong)
             }else{
             	speech = safeTextToSpeech("No Track was Selected")
 				sonos.playTrackAndResume(speech.uri, speech.duration, volume)
             }
             break
         case "Radionomy":
+            if (volume != null) {
+		sonos.stop()
+		pause(500)
+		sonos.setLevel(volume)
+		pause(500)
+            }
             sonos.playTrack("x-rincon-mp3radio://listen.radionomy.com/${radionomyStations[radionomy].key[0]}","<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\"><item id=\"1\" parentID=\"1\" restricted=\"1\"><upnp:class>object.item.audioItem.audioBroadcast</upnp:class><upnp:album>Radionomy</upnp:album><upnp:artist>${groovy.xml.XmlUtil.escapeXml(radionomyStations[radionomy].description[0])}</upnp:artist><upnp:albumArtURI>${groovy.xml.XmlUtil.escapeXml(radionomyStations[radionomy].artURI[0])}</upnp:albumArtURI><dc:title>${groovy.xml.XmlUtil.escapeXml(radionomy)}</dc:title><res protocolInfo=\"http-get:*:audio/mpeg:DLNA.ORG_PN=MP3;DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01500000000000000000000000000000\" >${groovy.xml.XmlUtil.escapeXml("x-rincon-mp3radio://listen.radionomy.com/${radionomyStations[radionomy].key[0]}")} </res></item> </DIDL-Lite>")
             break
         case "Multiple Radionomy":
@@ -458,6 +470,12 @@ private takeAction(evt) {
                     break
             }
             Collections.rotate(state.radionomyM, -1)
+            if (volume != null) {
+		sonos.stop()
+		pause(500)
+		sonos.setLevel(volume)
+		pause(500)
+            }
             sonos.playTrack("x-rincon-mp3radio://listen.radionomy.com/${radionomyStations[state.radionomyM[-1]].key[0]}","<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\"><item id=\"1\" parentID=\"1\" restricted=\"1\"><upnp:class>object.item.audioItem.audioBroadcast</upnp:class><upnp:album>Radionomy</upnp:album><upnp:artist>${groovy.xml.XmlUtil.escapeXml(radionomyStations[state.radionomyM[-1]].description[0])}</upnp:artist><upnp:albumArtURI>${groovy.xml.XmlUtil.escapeXml(radionomyStations[state.radionomyM[-1]].artURI[0])}</upnp:albumArtURI><dc:title>${groovy.xml.XmlUtil.escapeXml(state.radionomyM[-1])}</dc:title><res protocolInfo=\"http-get:*:audio/mpeg:DLNA.ORG_PN=MP3;DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01500000000000000000000000000000\" >${groovy.xml.XmlUtil.escapeXml("x-rincon-mp3radio://listen.radionomy.com/${radionomyStations[state.radionomyM[-1]].key[0]}")} </res></item> </DIDL-Lite>")
             break
 	}
