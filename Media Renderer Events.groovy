@@ -637,7 +637,7 @@ private safeTextToSpeech(message) {
         break
         case "Google":
         	message = message.length() >100 ? message[0..90] :message
-        	[uri: "x-rincon-mp3radio://www.translate.google.com/translate_tts?tl=en&client=t&q=" + URLEncoder.encode(message, "UTF-8").replaceAll(/\+/,'%20') +"&sf=//s3.amazonaws.com/smartapp-", duration: "${5 + Math.max(Math.round(message.length()/12),2)}"]
+        	[uri: "x-rincon-mp3radio://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q=" + URLEncoder.encode(message, "UTF-8").replaceAll(/\+/,'%20') +"&sf=//s3.amazonaws.com/smartapp-", duration: "${5 + Math.max(Math.round(message.length()/12),2)}"]
         break
         default:
             try {
