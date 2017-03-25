@@ -32,13 +32,13 @@ definition(
 )
 
 preferences {
-	page(name: "mainPage", title: "Play or Stop message, sount, track or station on your Player when something happens", install: true, uninstall: true)
+	page(name: "mainPage", title: "Play or Stop message, sound, track or station on your Player when something happens", install: true, uninstall: true)
 	page(name: "triggersPlay", title: "Play When ...")
     page(name: "triggersStop", title: "Stop When ...")
     page(name: "chooseTrack", title: "Select a track or station")
     page(name: "addMessage", title: "Add the message to play")
-    page(name: "ttsKey", title: "Add the Text for Speach Key")
-    page(name: "ttsSettings", title: "Text for Speach Settings")
+    page(name: "ttsKey", title: "Add the Text to Speech Key")
+    page(name: "ttsSettings", title: "Text to Speech Settings")
     page(name: "ttsKeyIvona", title: "Add the Ivona Key")
 	page(name: "timeIntervalInput", title: "Only during a certain time") {
 		section {
@@ -72,7 +72,7 @@ def mainPage() {
             input "RdoMode", "enum", title: "Multiple Mode?", required: true, defaultValue: "Shuffle", options: ["Loop","Random","Shuffle"]
         }
         section{  
-        	href "ttsSettings", title: "Text for Speach Settings",required:flase, description:ttsMode
+        	href "ttsSettings", title: "Text to Speech Settings",required:flase, description:ttsMode
         }
 		section {
 			input "sonos", "capability.musicPlayer", title: "On this Speaker", required: true,multiple:true
@@ -625,7 +625,7 @@ private textToSpeechT(message){
 }
 
 private safeTextToSpeech(message) {
-	message = message?:"You selected the Text to Speach Function but did not enter a Message"
+	message = message?:"You selected the Text to Speech Function but did not enter a Message"
     switch(ttsMode){
         case "Ivona":
         	[uri: ttsIvona(message), duration: "${5 + Math.max(Math.round(message.length()/12),2)}"]
@@ -692,5 +692,3 @@ def hmac_sha256(byte[] secretKey, String data) {
    		log.error "Invalid key exception while converting to HMac SHA256"	
     }
 }
-
-
