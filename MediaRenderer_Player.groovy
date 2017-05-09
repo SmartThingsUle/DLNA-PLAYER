@@ -88,18 +88,18 @@ metadata {
   // Row 1a
 	standardTile("nextTrack", "device.btnMode", width: 1, height: 1, decoration: "flat") {
         state "default", label:'', action:"nextTrack", icon:"st.sonos.next-btn", backgroundColor:"#ffffff",nextState:"default"
-        state "station", label:'Next Station', action:"nextStation", icon:"http://urbansa.com/icons/next-btn@2x.png", backgroundColor:"#ffffff",nextState:"station"
-        state "genre", label:'Next Genre', action:"nextGenre", icon:"http://urbansa.com/icons/next-btn@2x.png", backgroundColor:"#ffffff",nextState:"genre"
+        state "station", label:'Next Station', action:"nextStation", icon:"http://tts.urbansa.com/icons/next-btn@2x.png", backgroundColor:"#ffffff",nextState:"station"
+        state "genre", label:'Next Genre', action:"nextGenre", icon:"http://tts.urbansa.com/icons/next-btn@2x.png", backgroundColor:"#ffffff",nextState:"genre"
 	}
 	standardTile("play", "device.btnMode", width: 1, height: 1, decoration: "flat") {
 		state "default", label:'', action:"play", icon:"st.sonos.play-btn", nextState:"default", backgroundColor:"#ffffff"
-        state "station", label:'Play Station', action:"playStation", icon:"http://urbansa.com/icons/play-btn@2x.png", nextState:"station", backgroundColor:"#ffffff"
-        state "genre", label:'Play Station', action:"playStation", icon:"http://urbansa.com/icons/play-btn@2x.png", nextState:"genre", backgroundColor:"#ffffff"
+        state "station", label:'Play Station', action:"playStation", icon:"http://tts.urbansa.com/icons/play-btn@2x.png", nextState:"station", backgroundColor:"#ffffff"
+        state "genre", label:'Play Station', action:"playStation", icon:"http://tts.urbansa.com/icons/play-btn@2x.png", nextState:"genre", backgroundColor:"#ffffff"
 	}
 	standardTile("previousTrack", "device.btnMode", width: 1, height: 1, decoration: "flat") {
 		state "default", label:'', action:"previousTrack", icon:"st.sonos.previous-btn", backgroundColor:"#ffffff",nextState:"default"
-        state "station", label:'Prev Station', action:"previousStation", icon:"http://urbansa.com/icons/previous-btn@2x.png", backgroundColor:"#ffffff",nextState:"station"
-        state "genre", label:'Prev Genre', action:"previousGenre", icon:"http://urbansa.com/icons/previous-btn@2x.png", backgroundColor:"#ffffff",nextState:"genre"
+        state "station", label:'Prev Station', action:"previousStation", icon:"http://tts.urbansa.com/icons/previous-btn@2x.png", backgroundColor:"#ffffff",nextState:"station"
+        state "genre", label:'Prev Genre', action:"previousGenre", icon:"http://tts.urbansa.com/icons/previous-btn@2x.png", backgroundColor:"#ffffff",nextState:"genre"
 	}
     
 	// Row 2
