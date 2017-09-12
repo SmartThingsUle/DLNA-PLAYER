@@ -79,7 +79,8 @@ def mainPage() {
 			input "onPlay", "bool", title: "When turned On, Play if No Media", required: false, defaultValue: flase
             input "resumePlaying", "bool", title: "Resume currently playing music after notification", required: false, defaultValue: true
 			input "volume", "number", title: "Temporarily change volume", description: "0-100%", required: false
-			input "frequency", "decimal", title: "Minimum time between actions (defaults to every event)", description: "Minutes", required: false
+			input "party", "capability.musicPlayer", title: "Party on Speakers", required: false,multiple:true
+            input "frequency", "decimal", title: "Minimum time between actions (defaults to every event)", description: "Minutes", required: false
 			href "timeIntervalInput", title: "Only during a certain time", description: timeLabel ?: "Tap to set", state: timeLabel ? "complete" : "incomplete"
 			input "days", "enum", title: "Only on certain days of the week", multiple: true, required: false,
 				options: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
@@ -243,7 +244,6 @@ private saveSelectedSong() {
             
             sonos.each {
                 dataMaps = it.statesSince("trackData", new Date(0), [max:30]).collect{it.jsonValue}
-                log.info "Searching ${dataMaps.size()} records"
                 data = dataMaps.find {s -> s.station == song}
                 log.info "Found ${data?.station?:"None"}"
                 if (data) {
@@ -326,7 +326,6 @@ def subscribeToEvents(command="") {
     {
     	
         if (onPlay && sonos){
-            log.trace "subscribe touch"
             subscribe(sonos, "touch.play",  "eventHandler$command")
         }
         subscribe(app, appTouchHandler)
@@ -401,6 +400,19 @@ private takeAction(evt) {
     
     def speech
     def domain
+    def partyList = ""
+
+    party.each{
+    	if(it?.currentUdn) partyList += (partyList?",":"")+ it.currentUdn
+    }
+
+    
+    if (partyList){
+    sonos[0].party(partyList)
+    pause(1500)
+	}
+
+    
     switch(actionType) {
         case "Message":
 			speech = safeTextToSpeech(normalizeMessage(message,evt))
