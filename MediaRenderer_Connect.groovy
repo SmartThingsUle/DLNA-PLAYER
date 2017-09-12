@@ -1,5 +1,5 @@
 /**
- *  MediaRenderer Service Manager v 2.0.1
+ *  MediaRenderer Service Manager v 2.1.0
  *
  *  Author: SmartThings - Ulises Mujica 
  */
@@ -16,15 +16,21 @@ definition(
 )
 
 preferences {
+	
     page(name: "MainPage", title: "Search and config your Media Renderers", install:true, uninstall: true){
     	section("") {
             href(name: "discover",title: "Discovery process",required: false,page: "mediaRendererDiscovery",description: "tap to start searching")
         }
         section("Options", hideable: true, hidden: true) {
-            input("refreshMRInterval", "number", title:"Enter refresh players interval (min)",defaultValue:"15", required:false)
+            input("refreshMRInterval", "number", title:"Enter ip changes interval (min)",defaultValue:"15", required:false)
+            input("updateMRInterval", "number", title:"Enter refresh players interval (min)",defaultValue:"3", required:false)
+        }
+        section("") {
+            href(name: "watchDog",title: "WatchDog",required: false,page: "watchDogPage",description: "tap to config WatchDog")
         }
     }
     page(name: "mediaRendererDiscovery", title:"Discovery Started!")
+    page(name: "watchDogPage", title:"WatchDog")
 }
 
 def mediaRendererDiscovery()
@@ -32,8 +38,7 @@ def mediaRendererDiscovery()
     log.trace "mediaRendererDiscovery() state.subscribe ${state.subscribe}"
     if(canInstallLabs())
 	{
-		
-        
+
         int mediaRendererRefreshCount = !state.mediaRendererRefreshCount ? 0 : state.mediaRendererRefreshCount as int
 		state.mediaRendererRefreshCount = mediaRendererRefreshCount + 1
 		def refreshInterval = 5
@@ -128,20 +133,17 @@ def installed() {
 
 def updated() {
 	log.trace "updated()"
-
-   
-	if (selectedMediaRenderer) {
-		addMediaRenderer()
-	}
-    
+	if (selectedMediaRenderer) addMediaRenderer()
 	unsubscribe()
 	state.subscribe = false
     unschedule()
+    clearMediaRenderers()
     scheduleTimer()
+    timerAll()
     scheduleActions()
-
     refreshAll()
     syncDevices()
+    subscribeToEvents()
 }
 
 def uninstalled() {
@@ -158,6 +160,21 @@ def initialize() {
 }
 
 
+def clearMediaRenderers(){
+	log.trace "clearMediaRenderers()"
+	def devices = getChildDevices()
+    def player
+    def players = [:]
+    devices.each { device ->
+        player = getMediaRendererPlayer().find{ it?.value?.uuid == device.getDataValue('uuid') }
+        if (player){
+        	players << player
+        }
+	}
+    state.mediaRenderers = players
+    
+}
+
 def scheduledRefreshHandler(){
 
 }
@@ -172,7 +189,7 @@ def scheduledActionsHandler() {
 }
 
 private scheduleTimer() {
-    def cron = "0 0/3 * * * ?"
+    def cron = "0 0/1 * * * ?"
    	schedule(cron, scheduledTimerHandler)
 }
 
@@ -183,17 +200,15 @@ private scheduleActions() {
 }
 
 private syncDevices() {
-	log.debug "syncDevices()"
 	if(!state.subscribe) {
 		subscribe(location, null, locationHandler, [filterEvents:false])
-        log.trace "subscribe($location, null, locationHandler, [filterEvents:false])"
 		state.subscribe = true
 	}
-
 	discoverMediaRenderers()
 }
 
 private timerAll(){
+    state.actionTime = new Date().time
 	childDevices*.poll()
 }
 
@@ -209,7 +224,7 @@ def addMediaRenderer() {
 		if(!d) {
 			def newPlayer = players.find { (it.value.ip + ":" + it.value.port) == dni }
 			if (newPlayer){
-				d = addChildDevice("mujica", "DLNA Player", dni, newPlayer?.value.hub, [label:"${newPlayer?.value.name} Speaker","data":["model":newPlayer?.value.model,"avtcurl":newPlayer?.value.avtcurl,"avteurl":newPlayer?.value.avteurl,"rccurl":newPlayer?.value.rccurl,"rceurl":newPlayer?.value.rceurl,"udn":newPlayer?.value.udn,"dni":dni]])
+				d = addChildDevice("mujica", "DLNA Player", dni, newPlayer?.value.hub, [label:"${newPlayer?.value.name} Speaker","data":["model":newPlayer?.value.model,"avtcurl":newPlayer?.value.avtcurl,"avteurl":newPlayer?.value.avteurl,"rccurl":newPlayer?.value.rccurl,"rceurl":newPlayer?.value.rceurl,"pcurl":newPlayer?.value.pcurl,"peurl":newPlayer?.value.peurl,"udn":newPlayer?.value.udn,"dni":dni]])
 			}
 			runSubscribe = true
 		} 
@@ -230,18 +245,16 @@ def locationHandler(evt) {
 		    }
 		}
 	}
-    
-    
+
 	parsedEvent << ["hub":hub]
 
 	if (parsedEvent?.ssdpTerm?.contains("urn:schemas-upnp-org:device:MediaRenderer:1"))
 	{ //SSDP DISCOVERY EVENTS
-		log.debug "MediaRenderer device found" + parsedEvent
 		def mediaRenderers = getMediaRendererPlayer()
 
-		
 		if (!(mediaRenderers."${parsedEvent.ssdpUSN.toString()}"))
 		{ //mediaRenderer does not exist
+
 			mediaRenderers << ["${parsedEvent.ssdpUSN.toString()}":parsedEvent]
 		}
 		else
@@ -293,6 +306,8 @@ def locationHandler(evt) {
 				def avteurl = ""
 				def rccurl = ""
 				def rceurl = ""
+                def pcurl = ""
+				def peurl = ""
          
 			
 				device?.serviceList?.service?.each{
@@ -300,10 +315,15 @@ def locationHandler(evt) {
 						avtcurl = it?.controlURL?.text().startsWith("/")? it?.controlURL.text() : "/" + it?.controlURL.text()
 						avteurl = it?.eventSubURL?.text().startsWith("/")? it?.eventSubURL.text() : "/" + it?.eventSubURL.text()
 					}
-					else if (it?.serviceType?.text().contains("RenderingControl")) {
+					if (it?.serviceType?.text().contains("RenderingControl")) {
 						rccurl = it?.controlURL?.text().startsWith("/")? it?.controlURL?.text() : "/" + it?.controlURL?.text()
 						rceurl = it?.eventSubURL?.text().startsWith("/")? it?.eventSubURL?.text() : "/" + it?.eventSubURL?.text()
 					}
+                    if (it?.serviceType?.text().contains("Party")) {
+						pcurl = it?.controlURL?.text().startsWith("/")? it?.controlURL?.text() : "/" + it?.controlURL?.text()
+						peurl = it?.eventSubURL?.text().startsWith("/")? it?.eventSubURL?.text() : "/" + it?.eventSubURL?.text()
+					}
+                    
 				}
                 
 				
@@ -311,7 +331,7 @@ def locationHandler(evt) {
 				def player = mediaRenderers.find {it?.key?.contains(device?.UDN?.text())}
 				if (player)
 				{
-					player.value << [name:device?.friendlyName?.text(),model:device?.modelName?.text(), serialNumber:device?.UDN?.text(), verified: true,avtcurl:avtcurl,avteurl:avteurl,rccurl:rccurl,rceurl:rceurl,udn:device?.UDN?.text()]
+					player.value << [name:device?.friendlyName?.text(),model:device?.modelName?.text(), serialNumber:device?.UDN?.text(), verified: true,avtcurl:avtcurl,avteurl:avteurl,rccurl:rccurl,rceurl:rceurl,pcurl:pcurl,peurl:peurl,udn:device?.UDN?.text()]
 				}
 				
 			}
@@ -443,4 +463,125 @@ private Boolean hasAllHubsOver(String desiredFirmware)
 private List getRealHubFirmwareVersions()
 {
 	return location.hubs*.firmwareVersionString.findAll { it }
+}
+
+
+
+/*watch dog*/
+
+
+def watchDogPage() {
+	dynamicPage(name: "watchDogPage") {
+		def anythingSet = anythingSet()
+
+        if (anythingSet) {
+			section("Verify Timer When"){
+				ifSet "motion", "capability.motionSensor", title: "Motion Here", required: false, multiple: true
+				ifSet "contact", "capability.contactSensor", title: "Contact Opens", required: false, multiple: true
+				ifSet "contactClosed", "capability.contactSensor", title: "Contact Closes", required: false, multiple: true
+				ifSet "acceleration", "capability.accelerationSensor", title: "Acceleration Detected", required: false, multiple: true
+				ifSet "mySwitch", "capability.switch", title: "Switch Turned On", required: false, multiple: true
+				ifSet "mySwitchOff", "capability.switch", title: "Switch Turned Off", required: false, multiple: true
+				ifSet "arrivalPresence", "capability.presenceSensor", title: "Arrival Of", required: false, multiple: true
+				ifSet "departurePresence", "capability.presenceSensor", title: "Departure Of", required: false, multiple: true
+				ifSet "smoke", "capability.smokeDetector", title: "Smoke Detected", required: false, multiple: true
+				ifSet "water", "capability.waterSensor", title: "Water Sensor Wet", required: false, multiple: true
+                ifSet "temperature", "capability.temperatureMeasurement", title: "Temperature", required: false, multiple: true
+                ifSet "powerMeter", "capability.powerMeter", title: "Power Meter", required: false, multiple: true
+                ifSet "energyMeter", "capability.energyMeter", title: "Energy", required: false, multiple: true
+                ifSet "signalStrength", "capability.signalStrength", title: "Signal Strength", required: false, multiple: true
+				ifSet "button1", "capability.button", title: "Button Press", required:false, multiple:true //remove from production
+				ifSet "triggerModes", "mode", title: "System Changes Mode", required: false, multiple: true
+			}
+		}
+		def hideable = anythingSet || app.installationState == "COMPLETE"
+		def sectionTitle = anythingSet ? "Select additional triggers" : "Verify Timer When..."
+
+		section(sectionTitle, hideable: hideable, hidden: true){
+			ifUnset "motion", "capability.motionSensor", title: "Motion Here", required: false, multiple: true
+			ifUnset "contact", "capability.contactSensor", title: "Contact Opens", required: false, multiple: true
+			ifUnset "contactClosed", "capability.contactSensor", title: "Contact Closes", required: false, multiple: true
+			ifUnset "acceleration", "capability.accelerationSensor", title: "Acceleration Detected", required: false, multiple: true
+			ifUnset "mySwitch", "capability.switch", title: "Switch Turned On", required: false, multiple: true
+			ifUnset "mySwitchOff", "capability.switch", title: "Switch Turned Off", required: false, multiple: true
+			ifUnset "arrivalPresence", "capability.presenceSensor", title: "Arrival Of", required: false, multiple: true
+			ifUnset "departurePresence", "capability.presenceSensor", title: "Departure Of", required: false, multiple: true
+			ifUnset "smoke", "capability.smokeDetector", title: "Smoke Detected", required: false, multiple: true
+			ifUnset "water", "capability.waterSensor", title: "Water Sensor Wet", required: false, multiple: true
+			ifUnset "temperature", "capability.temperatureMeasurement", title: "Temperature", required: false, multiple: true
+            ifUnset "signalStrength", "capability.signalStrength", title: "Signal Strength", required: false, multiple: true
+            ifUnset "powerMeter", "capability.powerMeter", title: "Power Meter", required: false, multiple: true
+            ifUnset "energyMeter", "capability.energyMeter", title: "Energy Meter", required: false, multiple: true
+			ifUnset "button1", "capability.button", title: "Button Press", required:false, multiple:true //remove from production
+			ifUnset "triggerModes", "mode", title: "System Changes Mode", description: "Select mode(s)", required: false, multiple: true
+		}
+	}
+}
+
+private anythingSet() {
+	for (name in ["motion","contact","contactClosed","acceleration","mySwitch","mySwitchOff","arrivalPresence","departurePresence","smoke","water", "temperature","signalStrength","powerMeter","energyMeter","button1","timeOfDay","triggerModes","timeOfDay"]) {
+		if (settings[name]) {
+			return true
+		}
+	}
+	return false
+}
+
+private ifUnset(Map options, String name, String capability) {
+	if (!settings[name]) {
+		input(options, name, capability)
+	}
+}
+
+private ifSet(Map options, String name, String capability) {
+	if (settings[name]) {
+		input(options, name, capability)
+	}
+}
+
+private takeAction(evt) {
+	def eventTime = new Date().time
+	if (eventTime > ( 60000 + 3 * 1000 * 60 + state.actionTime?:0)) {
+		scheduleTimer()
+        timerAll()
+	}
+}
+
+def eventHandler(evt) {
+    takeAction(evt)
+}
+
+def modeChangeHandler(evt) {
+	if (evt.value in triggerModes) {
+		eventHandler(evt)
+	}
+}
+
+def subscribeToEvents() {
+	//subscribe(app, appTouchHandler)
+	subscribe(contact, "contact.open", eventHandler)
+	subscribe(contactClosed, "contact.closed", eventHandler)
+	subscribe(acceleration, "acceleration.active", eventHandler)
+	subscribe(motion, "motion.active", eventHandler)
+	subscribe(mySwitch, "switch.on", eventHandler)
+	subscribe(mySwitchOff, "switch.off", eventHandler)
+	subscribe(arrivalPresence, "presence.present", eventHandler)
+	subscribe(departurePresence, "presence.not present", eventHandler)
+	subscribe(smoke, "smoke.detected", eventHandler)
+	subscribe(smoke, "smoke.tested", eventHandler)
+	subscribe(smoke, "carbonMonoxide.detected", eventHandler)
+	subscribe(water, "water.wet", eventHandler)
+    subscribe(temperature, "temperature", eventHandler)
+    subscribe(powerMeter, "power", eventHandler)
+	subscribe(energyMeter, "energy", eventHandler)
+    subscribe(signalStrength, "lqi", eventHandler)
+    subscribe(signalStrength, "rssi", eventHandler)
+	subscribe(button1, "button.pushed", eventHandler)
+	if (triggerModes) {
+		subscribe(location, modeChangeHandler)
+	}
+}
+
+def getGXState(){
+	childDevices*.refreshParty(4)
 }
