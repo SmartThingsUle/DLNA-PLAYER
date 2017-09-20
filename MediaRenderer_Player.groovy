@@ -130,7 +130,7 @@ metadata {
 	}
 
 	// Row 3
-	controlTile("levelSliderControl", "device.level", "slider", height: 1, width: 3, inactiveLabel: false) {
+	controlTile("levelSliderControl", "device.level", "slider", height: 1, width: 1, inactiveLabel: false) {
 		state "level", action:"tileSetLevel", backgroundColor:"#ffffff"
 	}
 
@@ -168,10 +168,10 @@ metadata {
 	details([
 		"previousTrack","play","nextTrack",
       /*  "previousTrackGenre","playGenre","nextTrackGenre",*/
-		"status","stop","mute",
-		"levelSliderControl",
+		"levelSliderControl","stop","mute",
 		"currentSong",
-		"refreshPlayer", "doNotDisturb","btnMode","partyState"
+		"status", "doNotDisturb","btnMode",
+		"partyState","refreshPlayer"
 	])
 }
 
