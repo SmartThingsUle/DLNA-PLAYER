@@ -809,7 +809,7 @@ def restoreTrack(Map trackData = null) {
 		data = device.currentState("trackData")?.jsonValue
 	}
 	if (data) {
-		result << mediaRendererAction("SetAVTransportURI", [InstanceID:0, CurrentURI:cleanUri(data.uri), CurrentURIMetaData:cleanUri(data.metaData)])
+		result << mediaRendererAction("SetAVTransportURI", [InstanceID:0, CurrentURI:cleanUri(data.uri), CurrentURIMetaData:cleanXML(cleanUri(data.metaData))])
 	}
 	else {
 		log.warn "Previous track data not found"
@@ -1029,7 +1029,18 @@ private hex(value, width=2) {
 	}
 	s
 }
-
+private cleanXML(xml){
+    try {
+        if (xml){
+            def parsedXML = parseXml(xml)
+        }
+    }catch (e) {
+        log.debug "Error when parsing XML : " + e
+        log.debug metaData
+        xml=""
+    }
+    xml
+}
 private cleanUri(uri) {
     def model = getDataValue("model")
     if (uri){
