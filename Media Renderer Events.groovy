@@ -319,7 +319,7 @@ def subscribeToEvents(command="") {
         schedule(settings["timeOfDay$command"], "eventHandler$command")
     }
 	if (settings["triggerModes$command"]) {
-        subscribe(location, modeChangeHandler)
+        subscribe(location, "eventHandler$command")
     }
 
     if (command == "")
