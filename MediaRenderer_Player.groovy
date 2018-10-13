@@ -1,5 +1,5 @@
 /** 
- *  MediaRenderer Player v2.5.0
+ *  MediaRenderer Player v2.5.1
  *
  *  Author: SmartThings - Ulises Mujica (Ule)
  *
@@ -1138,7 +1138,7 @@ def playStation(incStatation = 0, incGenre = 0){
 def getUriStation(id){
     def  uri
     def params = [
-            uri: "http://www.shoutcast.com/Player/GetStreamUrl",
+            uri: "http://directory.shoutcast.com/Player/GetStreamUrl",
             body: [ station: id],
             contentType: "text/plain",
         ]
@@ -1161,7 +1161,7 @@ def getStationGenre(genre){
             state[genre] = []
                 try {
                 def params = [
-                    uri: "http://www.shoutcast.com/Home/BrowseByGenre",
+                    uri: "http://directory.shoutcast.com/Home/BrowseByGenre",
                     body: [
                         genrename: genre
                     ]
