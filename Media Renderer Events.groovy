@@ -61,7 +61,7 @@ def mainPage() {
 
         section{  
         	href "addMessage", title: "Play this message?",required: actionType == "Message"? true:flase, description: message ? message : "Tap to set", state: message ? "complete" : "incomplete"
-        	input "sound", "enum", title: "Play this Sound?", required: actionType == "Sound"? true:flase, defaultValue: "Bell 1", options: ["Bell 1","Bell 2","Dogs Barking","Fire Alarm","Piano","Lightsaber"]
+        	input "sound", "enum", title: "Play this Sound?", required: actionType == "Sound"? true:flase, defaultValue: "Bell 1", options: ["Bell 1","Bell 2","Dogs Barking","Fire Alarm","Piano","Lightsaber","Noise"]
 			href "chooseTrack", title: "Play this track",required: actionType == "Track"? true:flase, description: song ? (song?:state.selectedSong?.station) : "Tap to set", state: song ? "complete" : "incomplete"
 	        input "radionomy", "enum", title: "Play this Radionomy Station?", required: actionType == "Radionomy"? true:flase, options: radionomyOptions
             input "radionomyM", "enum", title: "Play Multiple Radionomy Station?", required: actionType == "Multiple Radionomy"? true:flase, multiple:true, options: radionomyOptions
@@ -576,6 +576,9 @@ private loadText() {
 			break;
 		case "Lightsaber":
 			state.sound = [uri: "http://s3.amazonaws.com/smartapp-media/sonos/lightsaber.mp3", duration: "10"]
+			break;
+		case "Noise":
+			state.sound = [uri: "http://mc2method.org/white-noise/download.php?file=03-White-Noise&length=60", duration: "216000"]
 			break;
 		default:
 			 state.sound = externalTTS ? textToSpeechT("You selected the sound option but did not enter a sound in the $app.label Smart App") : textToSpeech("You selected the sound option but did not enter a sound in the $app.label Smart App")
