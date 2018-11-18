@@ -27,7 +27,7 @@ Its compatible with official smartapps made for sonos speakers
  4. Sonos Weather Forecast by SmartThings : Play a weather report through your Sonos when the mode changes or other events occur
  5. Talking Alarm Clock by Michael Struck : Control up to 4 waking schedules using a Sonos speaker as an alarm.
  
-Unoficial 
+Unofficial 
 
 Its compatible with  unofficial smartapps made music and messages
 
